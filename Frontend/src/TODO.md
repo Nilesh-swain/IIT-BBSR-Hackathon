@@ -1,0 +1,2 @@
+- [x] Step 1: Update Frontend/src/main.jsx with React import, StrictMode, CosmosProvider wrapper
+- [x] Step 2: Test with `cd Frontend && npm run dev`
