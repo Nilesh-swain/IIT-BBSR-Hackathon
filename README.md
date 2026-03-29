@@ -1,57 +1,217 @@
-# Antariksh Command Console
+# 🌌 ANTARIKSH
 
-Mission-control styled full-stack app for asteroid awareness: live 3D orbital canvas, community feeds, research publishing, watchlists, and notification system (desktop, in-app, email, SMS ready). Frontend is Vite/React with R3F; backend is Node/Express + MongoDB + Cloudinary + mailer.
+### A Decentralized Space Intelligence & Exploration Platform
 
-## Stack
-- Frontend: React 18, Vite, Tailwind, React Three Fiber + Drei, Postprocessing
-- Backend: Node/Express, MongoDB/Mongoose, Multer + Cloudinary, Nodemailer
-- Auth/State: JWT + protected API routes, local notification store
+**Track the cosmos. Understand the unknown. Act with data.**
 
-## Quick Start
-1) Install deps  
-   - `cd backend && npm install`  
-   - `cd ../Frontend && npm install`
-2) Env setup: copy `.env.example` in each folder to `.env`, fill values (see Env Vars).
-3) Run dev: terminal A `cd backend && npm run dev`; terminal B `cd Frontend && npm run dev`.
-4) Open frontend at Vite URL (default http://localhost:5173).
+ANTARIKSH is a mission-control inspired platform that combines real-time asteroid intelligence, immersive 3D visualization, AI-powered insights, and a decentralized community to transform how humans observe and respond to near-Earth objects.
 
-## Env Vars (backend)
-- `MONGO_URI` – Mongo connection string
-- `JWT_SECRET` – auth signing key
-- Cloudinary: either `CLOUDINARY_URL` or trio `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET`
-- Mail: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, optional `SMTP_FROM`
-- `VITE_NASA_API_KEY` (frontend reads via Vite proxyed build-time)
+This is not just a space app.
+**This is digital infrastructure for planetary awareness.**
 
-## Env Vars (frontend)
-- `VITE_API_BASE_URL` – points to backend (e.g., http://localhost:5000/api)
-- `VITE_NASA_API_KEY` – optional override for NEO feed (falls back to DEMO_KEY)
+---
 
-## Key Features
-- 3D Orbital Canvas: live NASA NEO feed, selectable planets/asteroids, cinematic lighting, target detail card.
-- Community Hub: posts with media (img/video/pdf), likes/comments, per-asteroid threads.
-- Research Facility: upload/publish PDF papers per asteroid; profile archive + notifications.
-- DataHub Watchlist: user-private saved asteroids, refresh-stable.
-- Notifications: in-app bell with storage; desktop notifications with permission; email/SMS preference toggles ready for backend wiring.
-- Media: Cloudinary-backed uploads with size/type filtering.
+# 🚀 Why ANTARIKSH?
 
-## Scripts
-- Backend: `npm run dev` (nodemon), `npm run lint`
-- Frontend: `npm run dev`, `npm run build`, `npm run preview`
+Space is no longer distant. It is dynamic, data-rich, and increasingly relevant to Earth’s safety.
 
-## Testing / Checks
-- Lint: `cd backend && npm run lint` (if configured), `cd Frontend && npm run build` for type/bundle sanity.
-- No automated tests included yet; manual flows: auth login, community post with media, research publish PDF, watchlist save, notifications toggles.
+Most platforms only display asteroid data.
+**ANTARIKSH goes further — enabling prediction, interaction, and collective intelligence.**
 
-## Deployment Notes
-- Set all env vars; ensure Cloudinary + SMTP reachable from host.
-- Serve frontend build (`Frontend/dist`) via CDN or static host; backend runs separately on Node.
-- Configure CORS/API base URL to match deployed domains.
+---
 
-## Paths of Interest
-- Frontend: `Frontend/src/features/3D/ThreeDView.jsx`, `Frontend/src/features/Community/CommunityRegistry.jsx`, `Frontend/src/features/ResearchLab/ResearchLab.jsx`, `Frontend/src/features/DataHub/DataHub.jsx`, `Frontend/src/features/Settings/SettingsPage.jsx`
-- Backend: `backend/src/controllers/communityController.js`, `backend/src/controllers/researchController.js`, `backend/src/controllers/watchlistController.js`, `backend/src/config/cloudinary.js`, `backend/src/services/emailService.js`
+# 🧠 Core Modules
 
-## Roadmap Ideas
-- Per-user backend notification store (sync across devices); SMS sender hook.
-- Texture assets for planets/asteroids to further raise visual fidelity without external fetches.
-- Automated tests for uploads, permissions, and notification preferences.
+## 🛰️ 3D Orbital Intelligence
+
+* Real-time asteroid tracking (NASA NEO)
+* Interactive 3D solar system visualization
+* Select and inspect celestial objects
+* Cinematic rendering with smooth transitions
+
+## 🌍 Community Command Hub
+
+* Social platform for space discussions
+* Post images, videos, and research
+* Like, comment, and collaborate
+* Asteroid-specific discussion threads
+
+## 📚 Research & Knowledge Lab
+
+* Upload and publish research papers (PDF)
+* Personal research archive
+* Knowledge sharing across users
+* Notification-based updates
+
+## 📡 DataHub Watchlist
+
+* Save asteroids privately
+* Track selected objects over time
+* Persistent and user-specific storage
+
+## 🔔 Intelligent Notification System
+
+* In-app notification center
+* Desktop alerts (permission-based)
+* Email/SMS-ready backend integration
+
+## ☁️ Media & Data Pipeline
+
+* Cloudinary-based uploads
+* Image, video, and PDF support
+* File validation and optimization
+
+---
+
+# 🔄 System Workflow
+
+**Data Collection**
+↓
+**AI Processing & Filtering**
+↓
+**3D Visualization & Dashboards**
+↓
+**User Interaction & Insights**
+↓
+**Community Discussion & Action**
+
+---
+
+# 🎯 Target Users
+
+* Space enthusiasts & learners
+* Students & researchers
+* Developers & data scientists
+* Astronomy communities
+* Future planetary defense systems
+
+---
+
+# 🎨 Design Philosophy
+
+* Minimal and immersive UI
+* Data-first visualization
+* Cinematic experience
+* No distraction, only exploration
+* Built for clarity, curiosity, and depth
+
+---
+
+# 🔐 Ethics & Principles
+
+* Open data integration
+* Transparent information sources
+* Privacy-first architecture
+* No misinformation amplification
+* Community-driven knowledge sharing
+
+---
+
+# 🌌 Impact Goals
+
+* Improve awareness of near-Earth objects
+* Enable early understanding of asteroid risks
+* Encourage collaborative research
+* Build a global space-aware community
+* Transform passive data into active insight
+
+---
+
+# 🧩 What Makes ANTARIKSH Different?
+
+| Feature       | Typical Platforms | ANTARIKSH                   |
+| ------------- | ----------------- | --------------------------- |
+| Visualization | Static data       | Immersive 3D environment    |
+| Asteroid Data | Informational     | Interactive + trackable     |
+| Community     | Basic forums      | Integrated social ecosystem |
+| Research      | External          | Built-in publishing         |
+| Notifications | Limited           | Multi-channel ready         |
+| Experience    | Flat UI           | Cinematic & dynamic         |
+
+---
+
+# 🛠️ Tech Stack
+
+### Frontend
+
+* React 18 + Vite
+* Tailwind CSS
+* React Three Fiber + Drei
+* Postprocessing Effects
+
+### Backend
+
+* Node.js + Express
+* MongoDB + Mongoose
+* Cloudinary (media storage)
+* Nodemailer (email service)
+
+### System
+
+* JWT Authentication
+* REST APIs
+* Local + scalable notification system
+
+---
+
+# ⚡ Quick Start
+
+```bash
+# Clone repository
+git clone <your-repo-url>
+cd Antariksh
+
+# Install dependencies
+cd backend && npm install
+cd ../Frontend && npm install
+
+# Run backend
+cd backend && npm run dev
+
+# Run frontend
+cd Frontend && npm run dev
+```
+
+👉 Open: [http://localhost:5173](http://localhost:5173)
+
+---
+
+# 🚀 Deployment
+
+* Configure environment variables
+* Deploy backend on Node server
+* Host frontend build on CDN/static hosting
+* Enable CORS and secure APIs
+
+---
+
+# 🧭 Roadmap
+
+* AI-based asteroid risk prediction
+* Cross-device synced notifications
+* Enhanced 3D textures and realism
+* Public APIs for researchers
+* Global collaborative space network
+
+---
+
+# 🤝 Contributing
+
+Exploration is never a solo journey.
+
+Contributions, ideas, and discussions are welcome.
+
+---
+
+# 📜 License
+
+Open-source (to be defined)
+
+---
+
+# 🌠 Final Note
+
+*Some platforms show you data.*
+*ANTARIKSH lets you experience the universe.*
+
+**The sky is no longer the limit. It’s the interface.**
