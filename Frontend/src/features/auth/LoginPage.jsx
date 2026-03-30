@@ -41,6 +41,8 @@ const LoginPage = () => {
         email: creds.username,
         password: creds.password,
       };
+      
+      console.log("🌌 Attempting System Handshake:", loginData.email);
       await apiPost("/auth/login", loginData);
 
       setStatus("AUTHORIZED");
@@ -135,6 +137,7 @@ const LoginPage = () => {
               <div className="space-y-4">
                 <InputWrapper label="Service Identifier" icon={User}>
                   <input
+                    name="username"
                     type="text"
                     placeholder="OPERATOR_ID"
                     className="auth-input"
@@ -147,6 +150,7 @@ const LoginPage = () => {
 
                 <InputWrapper label="Encryption Passkey" icon={Lock}>
                   <input
+                    name="password"
                     type="password"
                     placeholder="••••••••••••"
                     className="auth-input"

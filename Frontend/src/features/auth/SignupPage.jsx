@@ -42,7 +42,8 @@ const SignupPage = () => {
     };
 
     try {
-      await apiPost("/auth/register", formData);
+      console.log("🚀 Initializing Registration Uplink:", payload.email);
+      await apiPost("/auth/register", payload);
       setLoading(false);
       setRegError("");
       setRegComplete(true);
@@ -50,7 +51,7 @@ const SignupPage = () => {
       // Navigate to OTP with email state
       setTimeout(() => {
         navigate("/auth/verify", {
-          state: { email: formData.email },
+          state: { email: payload.email },
           replace: true,
         });
       }, 1500);
@@ -151,6 +152,7 @@ const SignupPage = () => {
                   <div className="space-y-4">
                     <InputWrapper label="Operator Alias" icon={UserPlus}>
                       <input
+                        name="username"
                         type="text"
                         placeholder="RESEARCH_ID_01"
                         className="auth-input"
@@ -160,6 +162,7 @@ const SignupPage = () => {
 
                     <InputWrapper label="Relay Email" icon={Mail}>
                       <input
+                        name="email"
                         type="email"
                         placeholder="OPERATOR@AGENCY.GOV"
                         className="auth-input"
@@ -169,6 +172,7 @@ const SignupPage = () => {
 
                     <InputWrapper label="Security Secret" icon={Lock}>
                       <input
+                        name="password"
                         type="password"
                         placeholder="••••••••••••"
                         className="auth-input"
