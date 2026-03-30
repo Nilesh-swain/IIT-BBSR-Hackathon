@@ -22,11 +22,15 @@ export async function apiFetch(endpoint, options = {}) {
   };
 
   try {
+    console.log(`🌌 [API_UPLINK]: ${config.method || "GET"} ${url} | Trace: ${new Date().toISOString()}`);
     const response = await fetch(url, config);
+    console.log(`📡 [API_DOWNLINK]: ${url} | Status: ${response.status} ${response.statusText}`);
 
     if (!response.ok) {
       // ⚠️ Use text() first to avoid 'Unexpected end of JSON input'
       const errorText = await response.text();
+      console.error(`🛑 [API_ERROR]: ${url} | Status: ${response.status} | Msg: ${errorText}`);
+      
       let errorData = {};
       try {
         errorData = JSON.parse(errorText);
@@ -37,16 +41,23 @@ export async function apiFetch(endpoint, options = {}) {
     }
 
     // ✅ Handle 204 No Content or empty bodies safely
-    if (response.status === 204) return null;
+    if (response.status === 204) {
+      console.log(`✅ [API_SUCCESS]: ${url} | No Content`);
+      return null;
+    }
     
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.includes("application/json")) {
-      return response.json();
+      const data = await response.json();
+      console.log(`✅ [API_SUCCESS_JSON]: ${url}`, data);
+      return data;
     }
     
-    return response.text();
+    const textData = await response.text();
+    console.log(`✅ [API_SUCCESS_TEXT]: ${url}`, textData);
+    return textData;
   } catch (error) {
-    console.error("API Error:", error);
+    console.error("⛔ [API_FATAL_EXCEPTION]:", error);
     throw error;
   }
 }

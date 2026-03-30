@@ -28,7 +28,11 @@ import researchRoutes from "./src/routes/researchRoutes.js";
 const app = express();
 
 // --- 1. SECURITY & CORE MIDDLEWARES ---
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: false, // 🛡️ Necessary for cross-domain auth
+  })
+);
 app.use(morgan("dev"));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));

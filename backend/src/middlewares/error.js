@@ -4,9 +4,9 @@ const errorMiddleware = (err, req, res, next) => {
     // During development, show the actual message
     let message = err.message || "Internal Server Error";
 
-    if (process.env.NODE_ENV === "development") {
-        console.error(`[${req.method} ${req.originalUrl}]`, err);
-    }
+    // 🛡️ Log everything in console for Render Dashboard visibility
+    console.error(`🚨 [SYSTEM_ERROR]: ${req.method} ${req.originalUrl} | Status: ${err.statusCode} | Msg: ${err.message}`);
+    if (err.stack) console.error(err.stack);
 
     // Handle Mongoose Duplicate Key
     if (err.code === 11000) {

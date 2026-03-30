@@ -141,20 +141,28 @@ export const uploadPaper = async (req, res, next) => {
 export const registerUser = async (req, res, next) => {
   try {
     const { username, name, email, password } = req.body;
+    console.log("?? Incoming Registration Uplink:", { username, email });
+
     if (!username || !email || !password) {
+      console.warn("?? Registration Failed: Incomplete Payload");
       return res.status(400).json({ success: false, message: "Incomplete credentials." });
     }
 
     let user = await User.findOne({ email });
     if (user) {
+      console.warn("?? Registration Failed: Duplicate Email", email);
       return res.status(409).json({ success: false, message: "Identity already registered. Please login." });
     }
 
     user = new User({ username, name: name || username, email, password });
     const otp = user.generateOTP();
-    await user.save(); // ?? Stored in Atlas
+    
+    console.log("?? Attempting Database Persistence for:", email);
+    await user.save(); // ??? CRITICAL: Stored in Atlas here
+    console.log("? Database Persistence Successful:", email);
 
     try {
+      console.log("?? Dispatching Security OTP to:", email);
       await sendEmail({
         email: user.email,
         subject: "Antariksh Security Protocol: Verification OTP",
@@ -162,14 +170,15 @@ export const registerUser = async (req, res, next) => {
       });
       res.status(201).json({ success: true, message: "Identity registered. OTP dispatched." });
     } catch (err) {
-      console.error("Mail Relay Failure:", err.message);
+      console.error("?? Mail Relay Failure:", err.message);
       res.status(201).json({ 
         success: true, 
-        message: "Identity registered, but mail relay failed. Please request a new OTP later.",
+        message: "Identity registered, but mail relay failed. Please verify later.",
         warning: "MAIL_RELAY_ERROR" 
       });
     }
   } catch (error) {
+    console.error("? Registration Exception:", error.message);
     next(error);
   }
 };
@@ -247,4 +256,5 @@ export const logout = (req, res) => {
     .status(200)
     .json({ success: true, message: "Session Terminated." });
 };
+
 

@@ -42,7 +42,7 @@ const SignupPage = () => {
     };
 
     try {
-      console.log("🚀 Initializing Registration Uplink:", payload.email);
+      console.log("🌌 [AUTH_DEBUG]: Initializing Registration Uplink for:", payload.email);
       await apiPost("/auth/register", payload);
       setLoading(false);
       setRegError("");

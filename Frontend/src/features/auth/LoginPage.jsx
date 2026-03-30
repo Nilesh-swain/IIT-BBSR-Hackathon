@@ -42,7 +42,7 @@ const LoginPage = () => {
         password: creds.password,
       };
       
-      console.log("🌌 Attempting System Handshake:", loginData.email);
+      console.log("🌠 [AUTH_DEBUG]: Attempting System Handshake for:", loginData.email);
       await apiPost("/auth/login", loginData);
 
       setStatus("AUTHORIZED");
