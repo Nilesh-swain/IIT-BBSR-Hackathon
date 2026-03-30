@@ -7,7 +7,10 @@ const API_KEY = process.env.NASA_API_KEY || "DEMO_KEY";
 export const fetchAndCacheAsteroids = async (startDate, endDate) => {
   try {
     const url = `${NASA_API_BASE}/feed?start_date=${startDate}&end_date=${endDate}&api_key=${API_KEY}`;
-    const response = await axios.get(url);
+    const response = await axios.get(url, {
+      timeout: 30000,
+      family: 4, // 🛡️ Force IPv4 to prevent Alpine/Docker networking hiccups
+    });
 
     const asteroids = [];
     const neos = Object.values(response.data.near_earth_objects).flat();
@@ -28,7 +31,11 @@ export const fetchAndCacheAsteroids = async (startDate, endDate) => {
 
     return asteroids;
   } catch (error) {
-    console.error("NASA API Error:", error.message);
+    console.error("NASA API Error:", {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+    });
     throw error;
   }
 };

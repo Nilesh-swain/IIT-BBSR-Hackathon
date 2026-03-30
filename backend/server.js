@@ -75,7 +75,35 @@ const connectDB = async () => {
   }
 };
 
+// 🌌 INITIAL SYNC FUNCTION (Robust Data Registry)
+const runInitialSync = async () => {
+  try {
+    const Asteroid = mongoose.model("Asteroid");
+    const asteroidCount = await Asteroid.countDocuments();
+    
+    console.log(`🌌 Registry Status: ${asteroidCount} objects indexed in Atlas.`);
+
+    if (asteroidCount < 20) {
+      console.log("🌌 Initializing Data Uplink to NASA API...");
+      const today = new Date().toISOString().split("T")[0];
+      const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+
+      await fetchAndCacheAsteroids(today, endDate);
+      console.log("✅ Registry Synchronized Successfully.");
+    }
+  } catch (error) {
+    console.error("⚠️ Local Registry Synchronization Failure:", error.message);
+    if (process.env.NODE_ENV === "production") {
+      console.warn("⚠️ Production Hint: Ensure NASA_API_KEY is available and Atlas IP whitelist allows connections.");
+    }
+  }
+};
+
+// Start DB then Start Sync (Sync is now decoupled)
 await connectDB();
+runInitialSync();
 
 // --- 4. HEALTH CHECK ---
 app.get("/status", (req, res) => {

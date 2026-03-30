@@ -3,17 +3,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Mail,
   MapPin,
-  Edit3,
   Save,
   Database,
-  Activity,
   Shield,
   Camera,
   Loader2,
   Compass,
   Layers,
   Terminal,
-  Cpu,
   User,
   FilePlus,
   FileText,
@@ -21,6 +18,78 @@ import {
 } from "lucide-react";
 import { apiGet, apiPut, apiPostForm } from "../../utils/api";
 import { useNotifications } from "../../contexts/NotificationContext.jsx";
+
+// Professional, Abstract Logo Component
+const SystemLogo = ({ size = 24, className = "" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    {/* Background Shape */}
+    <rect x="2" y="2" width="20" height="20" rx="4" fill="black" />
+    
+    {/* Abstract, interconnected structural elements representing data/nodes */}
+    <path
+      d="M12 6V18M6 12H18M16.5 7.5L7.5 16.5M7.5 7.5L16.5 16.5"
+      stroke="#FF5E00"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    
+    {/* Central core node */}
+    <circle cx="12" cy="12" r="2" fill="#FF5E00" />
+  </svg>
+);
+
+// High-Tech Architect Identity Node (Professional Default Avatar)
+const DefaultAvatar = ({ name = "A" }) => {
+  const initials = name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return (
+    <div className="w-full h-full relative flex items-center justify-center bg-gradient-to-br from-[#0A0C10] to-[#121418] overflow-hidden group/avatar">
+      {/* Dynamic Grid Overlay */}
+      <div className="absolute inset-0 opacity-[0.15] pointer-events-none">
+        <svg width="100%" height="100%">
+          <defs>
+            <pattern id="avatar-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="white" strokeWidth="0.5" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#avatar-grid)" />
+        </svg>
+      </div>
+      
+      {/* Interlocking Identity Graphics */}
+      <div className="absolute inset-0 border-[1px] border-white/5 rounded-full scale-[0.8] animate-[spin_20s_linear_infinite]" />
+      <div className="absolute inset-0 border-[1px] border-[#FF5E00]/10 rounded-full scale-[0.6] animate-[spin_12s_linear_infinite_reverse]" />
+      
+      {/* Initials with High-Tech Glow */}
+      <div className="relative z-10 flex flex-col items-center">
+        <span className="text-5xl font-black italic tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] group-hover/avatar:scale-110 transition-transform duration-500">
+          {initials}
+        </span>
+        <div className="h-[2px] w-8 bg-[#FF5E00] mt-2 shadow-[0_0_10px_#FF5E00]" />
+        <span className="text-[8px] font-mono text-[#FF5E00]/60 uppercase tracking-[0.5em] mt-3">
+          Identity_Node
+        </span>
+      </div>
+
+      {/* Aesthetic corner accents */}
+      <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-[#FF5E00]/20" />
+      <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-[#FF5E00]/20" />
+    </div>
+  );
+};
 
 const Profile = () => {
   // --- STATE ---
@@ -181,8 +250,8 @@ const Profile = () => {
     <div className="min-h-screen bg-[#030406] text-slate-300 font-sans selection:bg-[#FF5E00]/30 selection:text-white">
       {/* SIDEBAR NAVIGATION */}
       <aside className="fixed left-0 top-0 h-full w-20 border-r border-white/10 bg-black/40 backdrop-blur-xl flex flex-col items-center py-8 gap-10 z-50">
-        <div className="w-12 h-12 bg-[#FF5E00] rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(255,94,0,0.3)]">
-          <Activity className="text-black" size={24} />
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(255,94,0,0.15)]">
+          <SystemLogo size={32} />
         </div>
         <nav className="flex flex-col gap-8">
           <NavIcon icon={<Compass />} active />
@@ -229,8 +298,8 @@ const Profile = () => {
                   alt="avatar"
                 />
               ) : (
-                <div className="w-full aspect-[4/5] flex items-center justify-center bg-[#0A0C10]">
-                  <User size={80} className="text-zinc-800" />
+                <div className="w-full aspect-[4/5]">
+                  <DefaultAvatar name={profile.username || "Architect"} />
                 </div>
               )}
               {isEditing && (
@@ -288,6 +357,22 @@ const Profile = () => {
                 </div>
               </div>
             </div>
+
+            {/* SYSTEM METRICS (NEW) */}
+            <div className="grid grid-cols-2 gap-4">
+              <MetricItem 
+                label="Hazard_Potential" 
+                value="3" 
+                description="Threat_Index"
+                color="text-[#FF5E00]"
+              />
+              <MetricItem 
+                label="Archived_Logs" 
+                value={profile.papers.length} 
+                description="PDF_Registry"
+                color="text-emerald-500"
+              />
+            </div>
           </div>
 
           {/* RIGHT COLUMN: DATA */}
@@ -318,7 +403,7 @@ const Profile = () => {
               )}
             </div>
 
-            {/* RESEARCH ARCHIVE (THE BLANKET) */}
+            {/* RESEARCH ARCHIVE */}
             <div className="bg-[#0A0C10]/60 rounded-[2rem] border border-white/10 overflow-hidden shadow-2xl">
               <div className="p-8 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
                 <h3 className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-white">
@@ -445,7 +530,9 @@ const LoadingScreen = () => (
         size={60}
         strokeWidth={1}
       />
-      <Activity className="absolute inset-0 m-auto text-white/20" size={20} />
+      <div className="absolute inset-0 m-auto text-white/20 flex items-center justify-center">
+         <SystemLogo size={20} />
+      </div>
     </div>
     <div className="flex flex-col items-center gap-2">
       <span className="text-[10px] font-mono text-[#FF5E00] tracking-[0.5em] animate-pulse">

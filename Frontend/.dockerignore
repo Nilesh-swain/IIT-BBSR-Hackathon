@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+.env
+.git
+.gitignore
+Dockerfile
+docker-compose*
+README.md
+dist
+# vite.config.js is needed for the build
+# eslint.config.js might not be needed for production build, but helpful for dev
