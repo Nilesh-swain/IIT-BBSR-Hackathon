@@ -8,6 +8,7 @@ import {
   updateProfile,
   uploadAvatar,
   uploadPaper,
+  resendOTP,
 } from "../controllers/userController.js";
 import { protect as isAuthenticated } from "../middlewares/auth.js";
 import upload from "../config/cloudinary.js"; // Standard Cloudinary/Multer config
@@ -26,6 +27,9 @@ router.post("/verify-otp", verifyOTP);
 
 // @route   POST /api/auth/login
 router.post("/login", loginUser);
+
+// @route   POST /api/auth/resend-otp
+router.post("/resend-otp", resendOTP);
 
 // @route   GET /api/auth/logout
 router.get("/logout", logout);

@@ -65,19 +65,31 @@ const OtpVerification = () => {
       const entry = otp.join("");
       if (entry.length !== 6) return;
 
+      console.log("🌌 [AUTH_DEBUG]: Initializing Identity Verification for:", email);
       await apiPost("/auth/verify-otp", { email, otp: entry });
 
       setStatus("success");
       // Backend sets JWT cookie, navigate to dashboard
       setTimeout(() => navigate("/cosmos"), 1500);
     } catch (error) {
-      console.error("OTP Error:", error.message);
+      console.error("🛑 [AUTH_DEBUG]: Verification Failed:", error.message);
       setStatus("error");
       setOtp(new Array(6).fill(""));
       setTimeout(() => {
         setStatus("idle");
         if (inputRefs.current[0]) inputRefs.current[0].focus();
       }, 3000);
+    }
+  };
+
+  const handleResend = async () => {
+    try {
+      console.log("🌌 [AUTH_DEBUG]: Dispatching New Access Payload Request for:", email);
+      await apiPost("/auth/resend-otp", { email });
+      alert("Astraea Payload Re-dispatched to: " + email);
+    } catch (error) {
+      console.error("🛑 [AUTH_DEBUG]: Resend Failed:", error.message);
+      alert("Relay Failure: " + error.message);
     }
   };
 
@@ -210,9 +222,7 @@ const OtpVerification = () => {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    alert("Astraea Payload Re-dispatched to: " + email)
-                  }
+                  onClick={handleResend}
                   className="w-full py-2 flex items-center justify-center gap-2 text-[9px] font-black text-slate-600 hover:text-orange-500 transition-colors uppercase tracking-widest"
                 >
                   <RefreshCcw size={12} /> Resend Access Payload

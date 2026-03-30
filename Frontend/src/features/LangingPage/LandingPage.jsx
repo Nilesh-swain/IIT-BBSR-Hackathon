@@ -64,11 +64,14 @@ const AntarikshLanding = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-8 font-mono">
-           <div className="text-right">
+        <div className="flex items-center gap-6 font-mono">
+           <div className="text-right hidden sm:block">
               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Chronos_Sync</p>
               <p className="text-lg font-bold text-white tabular-nums tracking-tight">{time.split('T')[1].split('.')[0]}</p>
            </div>
+           <button onClick={() => navigate("/auth/signup")} className="px-6 py-2.5 border border-white/10 hover:bg-white/5 text-white font-black text-[10px] uppercase tracking-widest transition-all rounded-sm">
+             Enroll
+           </button>
            <button onClick={() => navigate("/auth/login")} className="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest transition-all rounded-sm">
              Login
            </button>
@@ -99,7 +102,7 @@ const AntarikshLanding = () => {
 
               <div className="flex gap-6 mt-12">
                 <button 
-                  onClick={() => navigate("/auth/login")}
+                  onClick={() => navigate("/auth/signup")}
                   className="group flex items-center gap-6 px-10 py-5 bg-white text-black font-black text-xs uppercase tracking-[0.3em] hover:bg-orange-600 hover:text-white transition-all active:scale-95 shadow-xl shadow-orange-900/10"
                 >
                   Establish Uplink <ChevronRight size={18} />

@@ -46,13 +46,17 @@ const LoginPage = () => {
       await apiPost("/auth/login", loginData);
 
       setStatus("AUTHORIZED");
-
       // Backend sets JWT cookie, navigate to 3D dashboard
       setTimeout(() => navigate("/cosmos"), 1200);
     } catch (error) {
-      console.error("Login Error:", error.message);
-      setStatus("FAILED");
-      setTimeout(() => setStatus("STANDBY"), 2000);
+      console.error("🛑 [AUTH_DEBUG]: Login Failed:", error.message);
+      
+      if (error.message.toLowerCase().includes("pending verification")) {
+        setStatus("PENDING_VERIFY");
+      } else {
+        setStatus("FAILED");
+        setTimeout(() => setStatus("STANDBY"), 3000);
+      }
     }
   };
 
@@ -134,6 +138,25 @@ const LoginPage = () => {
             </header>
 
             <form onSubmit={handleLogin} className="space-y-6">
+              {status === "FAILED" && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded text-red-500 text-[10px] font-bold uppercase tracking-widest text-center">
+                  Invalid Credentials. Check Protocol Clearances.
+                </div>
+              )}
+              {status === "PENDING_VERIFY" && (
+                <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded flex flex-col items-center gap-2">
+                  <p className="text-orange-500 text-[9px] font-bold uppercase tracking-widest text-center">
+                    Account Pending Verification.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/auth/verify", { state: { email: creds.username } })}
+                    className="text-white text-[10px] font-black uppercase tracking-[0.2em] hover:text-orange-500 underline decoration-orange-500"
+                  >
+                    Verify Now
+                  </button>
+                </div>
+              )}
               <div className="space-y-4">
                 <InputWrapper label="Service Identifier" icon={User}>
                   <input

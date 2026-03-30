@@ -247,14 +247,54 @@ export const loginUser = async (req, res, next) => {
  */
 export const logout = (req, res) => {
   res
+    .status(200)
     .cookie("token", null, {
       expires: new Date(Date.now()),
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "none",
+      secure: true,
+      sameSite: "None",
     })
+    .json({ success: true, message: "Session Terminated." });
+};
+
+/**
+ * @desc    Resend OTP to Pending User
+ */
+export const resendOTP = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Identity not found." });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ success: false, message: "Identity already verified. Please login." });
+    }
+
+    const otp = user.generateOTP();
+    await user.save();
+
+    try {
+      console.log("?? Resending Security OTP to:", email);
+      await sendEmail({
+        email: user.email,
+        subject: "Antariksh Security Protocol: New Verification OTP",
+        otp,
+      });
+      res.status(200).json({ success: true, message: "New OTP dispatched." });
+    } catch (err) {
+      console.error("?? Mail Relay Failure (Resend):", err.message);
+      res.status(500).json({ success: false, message: "Mail relay failure. Please retry later." });
+    }
+  } catch (error) {
+    next(error);
+  }
+})
     .status(200)
     .json({ success: true, message: "Session Terminated." });
 };
+
 
 

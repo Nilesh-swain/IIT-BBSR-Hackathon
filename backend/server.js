@@ -107,6 +107,7 @@ const runInitialSync = async () => {
 
 // Start DB then Start Sync (Sync is now decoupled)
 await connectDB();
+console.log("🚀 [SYSTEM_UPLINK]: Primary Database Confirmed. Initializing Data Registry...");
 runInitialSync();
 
 // --- 4. HEALTH CHECK ---
