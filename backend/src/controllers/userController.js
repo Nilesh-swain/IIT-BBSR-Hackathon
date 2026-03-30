@@ -142,31 +142,17 @@ export const registerUser = async (req, res, next) => {
   try {
     const { username, name, email, password } = req.body;
     if (!username || !email || !password) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Incomplete credentials." });
+      return res.status(400).json({ success: false, message: "Incomplete credentials." });
     }
 
     let user = await User.findOne({ email });
     if (user) {
-      return res.status(409).json({
-        success: false,
-        message:
-          "Identity already registered. Please login or verify your account.",
-      });
+      return res.status(409).json({ success: false, message: "Identity already registered. Please login." });
     }
 
     user = new User({ username, name: name || username, email, password });
-
-    // Check if generateOTP is a function (defined in User Schema)
-    if (typeof user.generateOTP !== "function") {
-      return res
-        .status(500)
-        .json({ success: false, message: "Auth Method Missing." });
-    }
-
     const otp = user.generateOTP();
-    await user.save();
+    await user.save(); // ?? Stored in Atlas
 
     try {
       await sendEmail({
@@ -174,16 +160,14 @@ export const registerUser = async (req, res, next) => {
         subject: "Antariksh Security Protocol: Verification OTP",
         otp,
       });
-      res
-        .status(200)
-        .json({ success: true, message: "OTP dispatched to secure mail." });
+      res.status(201).json({ success: true, message: "Identity registered. OTP dispatched." });
     } catch (err) {
-      user.otp = undefined;
-      user.otpExpire = undefined;
-      await user.save();
-      return res
-        .status(500)
-        .json({ success: false, message: "Mail relay failure." });
+      console.error("Mail Relay Failure:", err.message);
+      res.status(201).json({ 
+        success: true, 
+        message: "Identity registered, but mail relay failed. Please request a new OTP later.",
+        warning: "MAIL_RELAY_ERROR" 
+      });
     }
   } catch (error) {
     next(error);
@@ -263,3 +247,4 @@ export const logout = (req, res) => {
     .status(200)
     .json({ success: true, message: "Session Terminated." });
 };
+

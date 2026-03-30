@@ -35,10 +35,10 @@ const SignupPage = () => {
     e.preventDefault();
     setLoading(true);
 
-    const formData = {
-      username: e.target[0].value,
-      email: e.target[1].value,
-      password: e.target[2].value,
+    const payload = {
+      username: e.target.elements[0].value || e.target.elements.username?.value,
+      email: e.target.elements[1].value || e.target.elements.email?.value,
+      password: e.target.elements[2].value || e.target.elements.password?.value,
     };
 
     try {

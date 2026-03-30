@@ -84,11 +84,14 @@ For deploying this project to Render (monorepo structure), use the following con
 
 ---
 
+> [!CAUTION]
+> **MongoDB Atlas Network Access**: For Render to connect to your database, you MUST go to the [MongoDB Atlas Dashboard](https://cloud.mongodb.com/), navigate to **Network Access**, and add `0.0.0.0/0` (Allow access from anywhere). Render's IP addresses change frequently and will block your backend otherwise.
+
 > [!IMPORTANT]
-> **CORS Sync**: The `CLIENT_URL` in your backend must match your frontend's Render URL **exactly** (including `https://` and no trailing slash) for authentication to work correctly.
+> **CORS Sync**: The `CLIENT_URL` in your backend environment variables must match your frontend's Render URL **exactly** (e.g., `https://antariksh-web.onrender.com`). I have updated the code to support cross-domain cookies, so this is now the only requirement for a working session.
 
 ## Troubleshooting Production
 
-- **Blank Page**: Ensure `src/index.css` contains `@import "tailwindcss";`. If missing, Tailwind classes will not render, resulting in a collapsed layout.
-- **JSON Error**: If you see `Unexpected end of JSON input`, the API utility now handles this by waiting for the backend to "wake up" and safely parsing non-JSON error pages.
-- **404 on Refresh**: Ensure the `public/_redirects` file is present (it contains `/* /index.html 200`). This fixes React Router paths on Render.
+- **Registration "Mail Relay Failure"**: If you see this, the user data **is still saved** to Atlas, but your Gmail SMTP configuration might be blocked by Google Security. You can still log in if you manually verify the user in the Atlas dashboard (set `isVerified: true`).
+- **Blank Page**: Ensure `src/index.css` contains `@import "tailwindcss";`.
+- **404 on Refresh**: Ensure the `public/_redirects` file is present.
