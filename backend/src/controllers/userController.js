@@ -243,13 +243,14 @@ export const loginUser = async (req, res, next) => {
  * @desc    Logout and Terminate Session
  */
 export const logout = (req, res) => {
+  const isProduction = process.env.NODE_ENV === "production";
   res
     .status(200)
     .cookie("token", null, {
       expires: new Date(Date.now()),
       httpOnly: true,
-      secure: true,
-      sameSite: "None",
+      secure: isProduction,
+      sameSite: isProduction ? "None" : "Lax",
     })
     .json({ success: true, message: "Session Terminated." });
 };

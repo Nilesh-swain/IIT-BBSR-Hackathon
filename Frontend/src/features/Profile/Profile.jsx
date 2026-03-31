@@ -571,4 +571,20 @@ const ErrorState = () => (
   </div>
 );
 
+const MetricItem = ({ label, value, description, color = "text-white" }) => (
+  <div className="bg-white/[0.03] p-6 rounded-[1.5rem] border border-white/10 backdrop-blur-md">
+    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-[0.2em] block mb-2">
+      {label}
+    </span>
+    <span className={`text-3xl font-black italic tracking-tighter ${color}`}>
+      {value}
+    </span>
+    {description && (
+      <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest block mt-2">
+        {description}
+      </span>
+    )}
+  </div>
+);
+
 export default Profile;
