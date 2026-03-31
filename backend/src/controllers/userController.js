@@ -162,17 +162,25 @@ export const registerUser = async (req, res, next) => {
     console.log(">> Database Persistence Successful:", email);
 
     // Respond IMMEDIATELY — don't wait for email
-    res.status(201).json({ success: true, message: "Identity registered. OTP dispatched." });
-
-    // Fire-and-forget: send OTP email in the background
-    sendEmail({
-      email: user.email,
-      subject: "Antariksh Security Protocol: Verification OTP",
-      otp,
-    }).then(() => {
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: "Antariksh Security Protocol: Verification OTP",
+        otp,
+      });
       console.log(">> OTP Email sent successfully to:", email);
-    }).catch((err) => {
-      console.error(">> Mail Relay Failure (background):", err.message);
+    } catch (mailError) {
+      await User.deleteOne({ _id: user._id });
+      console.error(">> Mail Relay Failure:", mailError.message);
+      return res.status(502).json({
+        success: false,
+        message: "Registration failed because the verification email could not be sent.",
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Identity registered. OTP dispatched.",
     });
   } catch (error) {
     console.error(">> Registration Exception:", error.message);
@@ -275,18 +283,14 @@ export const resendOTP = async (req, res, next) => {
     await user.save();
 
     // Respond IMMEDIATELY
-    res.status(200).json({ success: true, message: "New OTP dispatched." });
-
-    // Fire-and-forget: send email in background
-    sendEmail({
+    await sendEmail({
       email: user.email,
       subject: "Antariksh Security Protocol: New Verification OTP",
       otp,
-    }).then(() => {
-      console.log(">> Resend OTP Email sent to:", email);
-    }).catch((err) => {
-      console.error(">> Mail Relay Failure (Resend):", err.message);
     });
+
+    console.log(">> Resend OTP Email sent to:", email);
+    return res.status(200).json({ success: true, message: "New OTP dispatched." });
   } catch (error) {
     next(error);
   }

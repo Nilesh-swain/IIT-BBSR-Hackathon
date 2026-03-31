@@ -39,7 +39,7 @@ const DataHub = () => {
   useEffect(() => {
     const bootstrapVault = async () => {
       try {
-        const res = await apiGet("/auth/me");
+        const res = await apiGet("/api/auth/me");
         const loggedIn = Boolean(res?.data?._id);
         setIsAuthenticated(loggedIn);
 
@@ -91,7 +91,7 @@ const DataHub = () => {
         
         // Step 2: Fallback to Backend Cache (Atlas Unified DB)
         try {
-          const cachedData = await apiGet("/asteroids?limit=50");
+          const cachedData = await apiGet("/api/asteroids?limit=50");
           if (cachedData?.success && cachedData.asteroids) {
             const mapped = cachedData.asteroids.map((a) => ({
               ...a,
@@ -113,7 +113,7 @@ const DataHub = () => {
   const fetchWatchlist = async () => {
     try {
       setWatchlistLoading(true);
-      const data = await apiGet("/watchlist");
+      const data = await apiGet("/api/watchlist");
       if (data.success) {
         setSavedAsteroids(data.watchlist);
       }
@@ -143,7 +143,7 @@ const DataHub = () => {
         asteroidData: ast,
       };
 
-      const response = await apiPost("/watchlist/toggle", payload);
+      const response = await apiPost("/api/watchlist/toggle", payload);
 
       if (response.success) {
         await fetchWatchlist();
@@ -334,3 +334,4 @@ const DetailItem = ({ label, value }) => (
 );
 
 export default DataHub;
+

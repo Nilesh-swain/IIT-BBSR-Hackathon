@@ -306,7 +306,7 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     try {
-      await apiGet("/auth/logout");
+      await apiGet("/api/auth/logout");
       addNotification({
         title: "Session Closed",
         message: "Your secure uplink session has been terminated.",
@@ -422,3 +422,4 @@ export default function Sidebar() {
     </aside>
   );
 }
+

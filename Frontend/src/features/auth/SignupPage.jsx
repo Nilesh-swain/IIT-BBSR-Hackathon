@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { apiPost } from "../../utils/api.js";
+import { apiPost, buildApiUrl } from "../../utils/api.js";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
 import {
@@ -43,7 +43,8 @@ const SignupPage = () => {
 
     try {
       console.log("🌌 [AUTH_DEBUG]: Initializing Registration Uplink for:", payload.email);
-      await apiPost("/auth/register", payload);
+      console.log("Final API URL:", buildApiUrl("/api/auth/register"));
+      await apiPost("/api/auth/register", payload);
       setLoading(false);
       setRegError("");
       setRegComplete(true);
@@ -293,3 +294,4 @@ const InputWrapper = ({ label, icon: Icon, children }) => (
 );
 
 export default SignupPage;
+

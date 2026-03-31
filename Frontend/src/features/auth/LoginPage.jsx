@@ -43,7 +43,7 @@ const LoginPage = () => {
       };
       
       console.log("🌠 [AUTH_DEBUG]: Attempting System Handshake for:", loginData.email);
-      await apiPost("/auth/login", loginData);
+      await apiPost("/api/auth/login", loginData);
 
       setStatus("AUTHORIZED");
       // Backend sets JWT cookie, navigate to 3D dashboard
@@ -269,3 +269,4 @@ const InputWrapper = ({ label, icon: Icon, children }) => (
 );
 
 export default LoginPage;
+

@@ -38,7 +38,7 @@ const RiskMonitor = () => {
     } catch (err) {
       console.warn("NASA Uplink Failure. Switching to Local Database:", err.message);
       try {
-        const cachedData = await apiGet("/asteroids/hazardous");
+        const cachedData = await apiGet("/api/asteroids/hazardous");
         if (cachedData?.success && cachedData.hazardous) {
           setHazardous(cachedData.hazardous);
         }

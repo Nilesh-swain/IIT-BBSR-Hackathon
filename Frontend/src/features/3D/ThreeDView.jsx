@@ -264,7 +264,7 @@ export default function ThreeDView() {
     } catch (e) {
       setLatestEvent("UPLINK_FAILURE: EMERGENCY RELAY ACTIVE");
       try {
-        const cachedData = await apiGet("/asteroids?limit=30");
+        const cachedData = await apiGet("/api/asteroids?limit=30");
         if (cachedData?.success && cachedData.asteroids) {
           const raw = cachedData.asteroids.map(normalizeNeo);
           setNeos(raw);
@@ -527,3 +527,4 @@ export default function ThreeDView() {
     </div>
   );
 }
+

@@ -60,7 +60,7 @@
 //     let isMounted = true;
 //     const verifySession = async () => {
 //       try {
-//         await apiGet("/auth/me");
+//         await apiGet("/api/auth/me");
 //         if (isMounted) setStatus("success");
 //       } catch (err) {
 //         if (isMounted) setStatus("fail");
@@ -194,7 +194,7 @@ function ProtectedRoute({ children }) {
     let isMounted = true;
     const verifySession = async () => {
       try {
-        await apiGet("/auth/me");
+        await apiGet("/api/auth/me");
         if (isMounted) setStatus("success");
       } catch (err) {
         if (isMounted) setStatus("fail");
@@ -272,3 +272,4 @@ function OtpVerificationHandler() {
     />
   );
 }
+

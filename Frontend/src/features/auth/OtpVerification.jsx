@@ -66,7 +66,7 @@ const OtpVerification = () => {
       if (entry.length !== 6) return;
 
       console.log("🌌 [AUTH_DEBUG]: Initializing Identity Verification for:", email);
-      await apiPost("/auth/verify-otp", { email, otp: entry });
+      await apiPost("/api/auth/verify-otp", { email, otp: entry });
 
       setStatus("success");
       // Backend sets JWT cookie, navigate to dashboard
@@ -85,7 +85,7 @@ const OtpVerification = () => {
   const handleResend = async () => {
     try {
       console.log("🌌 [AUTH_DEBUG]: Dispatching New Access Payload Request for:", email);
-      await apiPost("/auth/resend-otp", { email });
+      await apiPost("/api/auth/resend-otp", { email });
       alert("Astraea Payload Re-dispatched to: " + email);
     } catch (error) {
       console.error("🛑 [AUTH_DEBUG]: Resend Failed:", error.message);
@@ -276,3 +276,4 @@ const TelemetryItem = ({ label, value, color = "text-white" }) => (
 );
 
 export default OtpVerification;
+

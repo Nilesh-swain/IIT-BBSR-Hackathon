@@ -26,6 +26,14 @@ import communityRoutes from "./src/routes/communityRoutes.js";
 import researchRoutes from "./src/routes/researchRoutes.js";
 
 const app = express();
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  ...(process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim()),
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+].filter(Boolean);
 
 // --- 1. SECURITY & CORE MIDDLEWARES ---
 app.use(
@@ -42,9 +50,11 @@ app.use(cookieParser());
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Accept all origins for Hackathon flexibility (Vercel previews, local, etc)
-      // while still satisfying the 'credentials: true' requirement
-      callback(null, true);
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],

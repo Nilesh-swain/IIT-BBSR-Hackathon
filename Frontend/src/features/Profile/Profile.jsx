@@ -110,7 +110,7 @@ const Profile = () => {
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        const res = await apiGet("/auth/profile");
+        const res = await apiGet("/api/auth/profile");
         if (res?.success) {
           setProfile({
             ...res.data,
@@ -144,7 +144,7 @@ const Profile = () => {
     try {
       const formData = new FormData();
       formData.append("avatar", file);
-      const res = await apiPostForm("/auth/upload-avatar", formData);
+      const res = await apiPostForm("/api/auth/upload-avatar", formData);
 
       if (res?.success) {
         setProfile((prev) => ({ ...prev, avatarUrl: res.data.avatarUrl }));
@@ -184,7 +184,7 @@ const Profile = () => {
       formData.append("paper", file);
       formData.append("title", file.name.replace(/\.[^/.]+$/, ""));
 
-      const res = await apiPostForm("/auth/upload-paper", formData);
+      const res = await apiPostForm("/api/auth/upload-paper", formData);
 
       if (res?.success) {
         // UPDATE STATE IMMEDIATELY
@@ -210,7 +210,7 @@ const Profile = () => {
 
   const handleProfileSync = async () => {
     try {
-      const res = await apiPut("/auth/profile", profile);
+      const res = await apiPut("/api/auth/profile", profile);
       if (res?.success) {
         setIsEditing(false);
         addNotification({

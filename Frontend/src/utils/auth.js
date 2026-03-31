@@ -3,9 +3,10 @@ import { apiGet } from "./api.js";
 
 export const checkAuth = async () => {
   try {
-    const user = await apiGet("/auth/me");
+    const user = await apiGet("/api/auth/me");
     return !!user;
   } catch (error) {
     return false;
   }
 };
+

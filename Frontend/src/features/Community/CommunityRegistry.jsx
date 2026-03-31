@@ -43,7 +43,7 @@
 
 //   const loadSession = async () => {
 //     try {
-//       const response = await apiGet("/auth/me");
+//       const response = await apiGet("/api/auth/me");
 //       const user = response?.data;
 //       setIsAuthenticated(Boolean(user));
 //       setCurrentUserId(user?._id || null);
@@ -56,7 +56,7 @@
 //   const fetchPosts = async () => {
 //     try {
 //       setLoading(true);
-//       const data = await apiGet(`/community/${resolvedAsteroidId}/posts`);
+//       const data = await apiGet(`/api/community/${resolvedAsteroidId}/posts`);
 //       if (data.success) {
 //         setPosts(data.posts);
 //       }
@@ -81,7 +81,7 @@
 //       }
 
 //       const response = await apiPostForm(
-//         `/community/${resolvedAsteroidId}/posts`,
+//         `/api/community/${resolvedAsteroidId}/posts`,
 //         formData,
 //       );
 
@@ -101,7 +101,7 @@
 
 //   const handleLike = async (postId) => {
 //     try {
-//       const response = await apiFetch(`/community/posts/${postId}/like`, {
+//       const response = await apiFetch(`/api/community/posts/${postId}/like`, {
 //         method: "PUT",
 //       });
 
@@ -120,7 +120,7 @@
 //     if (!content) return;
 
 //     try {
-//       const response = await apiFetch(`/community/posts/${postId}/comment`, {
+//       const response = await apiFetch(`/api/community/posts/${postId}/comment`, {
 //         method: "POST",
 //         body: JSON.stringify({ content }),
 //       });
@@ -585,7 +585,7 @@ const CommunityRegistry = ({ asteroidId }) => {
 
   const loadSession = async () => {
     try {
-      const response = await apiGet("/auth/me");
+      const response = await apiGet("/api/auth/me");
       const user = response?.data;
       setIsAuthenticated(Boolean(user));
       setCurrentUserId(user?._id || null);
@@ -598,7 +598,7 @@ const CommunityRegistry = ({ asteroidId }) => {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const data = await apiGet(`/community/${resolvedAsteroidId}/posts`);
+      const data = await apiGet(`/api/community/${resolvedAsteroidId}/posts`);
       if (data.success) setPosts(data.posts);
     } catch (error) {
       console.error("Uplink Error:", error);
@@ -616,7 +616,7 @@ const CommunityRegistry = ({ asteroidId }) => {
       formData.append("category", selectedCategory);
       if (attachment) formData.append("attachment", attachment);
 
-      const response = await apiPostForm(`/community/${resolvedAsteroidId}/posts`, formData);
+      const response = await apiPostForm(`/api/community/${resolvedAsteroidId}/posts`, formData);
       if (response.success) {
         setPosts((currentPosts) => [response.post, ...currentPosts]);
         setNewPost("");
@@ -637,7 +637,7 @@ const CommunityRegistry = ({ asteroidId }) => {
 
   const handleLike = async (postId) => {
     try {
-      const response = await apiFetch(`/community/posts/${postId}/like`, { method: "PUT" });
+      const response = await apiFetch(`/api/community/posts/${postId}/like`, { method: "PUT" });
       if (response.success) {
         setPosts((prev) => prev.map((p) => (p._id === postId ? response.post : p)));
         addNotification({
@@ -655,7 +655,7 @@ const CommunityRegistry = ({ asteroidId }) => {
     const content = commentDrafts[postId]?.trim();
     if (!content) return;
     try {
-      const response = await apiFetch(`/community/posts/${postId}/comment`, {
+      const response = await apiFetch(`/api/community/posts/${postId}/comment`, {
         method: "POST",
         body: JSON.stringify({ content }),
       });
@@ -967,3 +967,4 @@ const Stat = ({ item, value, color }) => (
 );
 
 export default CommunityRegistry;
+

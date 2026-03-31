@@ -62,7 +62,7 @@ const SettingsPage = () => {
           setSettings((current) => ({ ...current, ...JSON.parse(stored) }));
         }
 
-        const res = await apiGet("/auth/profile");
+        const res = await apiGet("/api/auth/profile");
         if (res?.success) {
           setProfile(res.data);
         }
@@ -143,7 +143,7 @@ const SettingsPage = () => {
 
   const handleLogout = async () => {
     try {
-      await apiGet("/auth/logout");
+      await apiGet("/api/auth/logout");
       addNotification({
         title: "SESSION_TERMINATED",
         message: "Neural link severed. Secure session ended.",
@@ -322,3 +322,4 @@ const InfoRow = ({ icon, label, value }) => (
 );
 
 export default SettingsPage;
+

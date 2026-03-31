@@ -4,10 +4,23 @@
  * Includes credentials for JWT cookies
  */
 
+import { API_BASE } from "../config/api.js";
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+export const buildApiUrl = (endpoint) => {
+  const normalizedBase = API_BASE?.replace(/\/+$/, "");
+  const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+
+  if (!normalizedBase) {
+    throw new Error("VITE_API_URL is not defined");
+  }
+
+  return `${normalizedBase}${normalizedEndpoint}`;
+};
+
 export async function apiFetch(endpoint, options = {}, retries = 3, backoff = 1000) {
-  const url = `${API_BASE}${endpoint}`;
+  const url = buildApiUrl(endpoint);
   const isFormData = options.body instanceof FormData;
 
   const config = {

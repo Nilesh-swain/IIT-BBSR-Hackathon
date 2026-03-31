@@ -38,9 +38,9 @@
 //       try {
 //         setLoading(true);
 //         const [asteroidRes, paperRes, profileRes] = await Promise.all([
-//           apiGet("/asteroids?limit=100"),
-//           apiGet("/research?limit=50"),
-//           apiGet("/auth/profile"),
+//           apiGet("/api/asteroids?limit=100"),
+//           apiGet("/api/research?limit=50"),
+//           apiGet("/api/auth/profile"),
 //         ]);
 
 //         setAsteroids(asteroidRes?.asteroids || []);
@@ -529,9 +529,9 @@ const ResearchLab = () => {
       try {
         setLoading(true);
         const [asteroidRes, paperRes, profileRes] = await Promise.all([
-          apiGet("/asteroids?limit=100"),
-          apiGet("/research?limit=50"),
-          apiGet("/auth/profile"),
+          apiGet("/api/asteroids?limit=100"),
+          apiGet("/api/research?limit=50"),
+          apiGet("/api/auth/profile"),
         ]);
         
         setAsteroids(asteroidRes?.asteroids || []);
@@ -597,7 +597,7 @@ const ResearchLab = () => {
       const formData = new FormData();
       Object.entries(form).forEach(([key, val]) => formData.append(key, val));
       formData.append("paper", paperFile);
-      const response = await apiPostForm("/research/publish", formData);
+      const response = await apiPostForm("/api/research/publish", formData);
       if (response?.success) {
         setPapers(prev => [response.paper, ...prev]);
         setForm({ title: "", abstract: "", asteroidId: "", keywords: "", institution: "" });
@@ -846,3 +846,4 @@ const LoadingScreen = () => (
 );
 
 export default ResearchLab;
+

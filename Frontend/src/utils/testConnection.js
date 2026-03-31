@@ -7,7 +7,7 @@ import { apiGet } from "./api";
 export const testBackendConnection = async () => {
   console.log("🔍 [SYSTEM_CHECK]: Initiating backend connectivity test...");
   try {
-    const data = await apiGet("/test");
+    const data = await apiGet("/api/test");
     if (data && data.success) {
       console.log("✅ [SYSTEM_CHECK]: Backend is reachable and healthy!", data);
       return { success: true, data };
@@ -20,3 +20,4 @@ export const testBackendConnection = async () => {
     return { success: false, error: error.message };
   }
 };
+

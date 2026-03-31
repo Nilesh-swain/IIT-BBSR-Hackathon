@@ -7,7 +7,7 @@ function App() {
 
   useEffect(() => {
     // 🚀 Test Route: Proves frontend can talk to backend
-    apiGet("/status")
+    apiGet("/api/status")
       .then((res) => {
         setServerStatus(res?.status === "Active" ? "UPLINK SECURE" : "UPLINK UNSTABLE");
       })
