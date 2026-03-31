@@ -21,11 +21,35 @@ export const toggleWatchlist = async (req, res, next) => {
 
     const userId = new mongoose.Types.ObjectId(req.user._id || req.user.id);
 
+    if (!asteroidId) {
+      return res.status(400).json({
+        success: false,
+        message: "Asteroid ID is required.",
+      });
+    }
+
+    const resolvedName = name || asteroidData?.name;
+    if (!resolvedName) {
+      return res.status(400).json({
+        success: false,
+        message: "Asteroid name is required.",
+      });
+    }
+
+    if (!asteroidData || typeof asteroidData !== "object") {
+      return res.status(400).json({
+        success: false,
+        message: "Asteroid telemetry payload is required.",
+      });
+    }
+
     // 2. Check if asteroid already exists for this user
     const existingItem = await Watchlist.findOne({
       user: userId,
       asteroidId,
-    });
+    })
+      .select("_id")
+      .lean();
 
     // 3. REMOVE (Toggle Off)
     if (existingItem) {
@@ -34,7 +58,7 @@ export const toggleWatchlist = async (req, res, next) => {
       return res.status(200).json({
         success: true,
         action: "removed",
-        notification: `${name} removed from your vault.`,
+        notification: `${resolvedName} removed from your vault.`,
       });
     }
 
@@ -42,13 +66,13 @@ export const toggleWatchlist = async (req, res, next) => {
     const newItem = await Watchlist.create({
       user: userId,
       asteroidId,
-      name,
+      name: resolvedName,
       asteroidData,
     });
 
     // 5. Send Email (Non-blocking)
     if (req.user?.email) {
-      sendVaultNotification(req.user.email, name).catch(() =>
+      sendVaultNotification(req.user.email, resolvedName).catch(() =>
         console.warn("Email service failed (non-blocking).")
       );
     }
@@ -56,7 +80,7 @@ export const toggleWatchlist = async (req, res, next) => {
     return res.status(201).json({
       success: true,
       action: "added",
-      notification: `${name} added to your vault.`,
+      notification: `${resolvedName} added to your vault.`,
       data: {
         asteroidId: newItem.asteroidId,
         name: newItem.name,

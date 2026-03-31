@@ -13,6 +13,7 @@ import { createServer } from "http";
 
 // --- IMPORT MODELS FIRST (IMPORTANT) ---
 import "./src/models/Watchlist.js";
+import "./src/models/OtpVerification.js";
 
 // Services & Middlewares
 import { fetchAndCacheAsteroids } from "./src/services/nasaService.js";

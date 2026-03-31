@@ -22,6 +22,8 @@ export const buildApiUrl = (endpoint) => {
 export async function apiFetch(endpoint, options = {}, retries = 3, backoff = 1000) {
   const url = buildApiUrl(endpoint);
   const isFormData = options.body instanceof FormData;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
   const config = {
     headers: isFormData
@@ -31,6 +33,7 @@ export async function apiFetch(endpoint, options = {}, retries = 3, backoff = 10
           ...options.headers,
         },
     credentials: "include", // Essential for JWT cookies
+    signal: controller.signal,
     ...options,
   };
 
@@ -70,7 +73,10 @@ export async function apiFetch(endpoint, options = {}, retries = 3, backoff = 10
     console.log(`✅ [API_SUCCESS_TEXT]: ${url}`, textData);
     return textData;
   } catch (error) {
-    const isNetworkError = error instanceof TypeError || error.message.includes("Failed to fetch");
+    const isNetworkError =
+      error instanceof TypeError ||
+      error.name === "AbortError" ||
+      error.message.includes("Failed to fetch");
     
     if (retries > 0 && isNetworkError) {
       console.warn(`⚠️ [API_RETRY]: Retrying ${url} in ${backoff}ms (${retries} retries left). Reason: ${error.message}`);
@@ -82,10 +88,15 @@ export async function apiFetch(endpoint, options = {}, retries = 3, backoff = 10
     
     // Enriching the error for the UI
     if (isNetworkError) {
-      error.message = "Unable to connect to the server. It might be waking up from sleep. Please try again in a few seconds.";
+      error.message =
+        error.name === "AbortError"
+          ? "The request timed out. Please try again."
+          : "Unable to connect to the server. It might be waking up from sleep. Please try again in a few seconds.";
     }
     
     throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

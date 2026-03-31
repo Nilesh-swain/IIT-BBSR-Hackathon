@@ -33,7 +33,9 @@ const SignupPage = () => {
 
   const handleSignup = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
+    setRegError("");
 
     const payload = {
       username: e.target.elements[0].value || e.target.elements.username?.value,
@@ -44,22 +46,21 @@ const SignupPage = () => {
     try {
       console.log("🌌 [AUTH_DEBUG]: Initializing Registration Uplink for:", payload.email);
       console.log("Final API URL:", buildApiUrl("/api/auth/register"));
-      await apiPost("/api/auth/register", payload);
-      setLoading(false);
-      setRegError("");
+      const response = await apiPost("/api/auth/register", payload);
       setRegComplete(true);
 
       // Navigate to OTP with email state
       setTimeout(() => {
         navigate("/auth/verify", {
-          state: { email: payload.email },
+          state: { email: response?.email || payload.email },
           replace: true,
         });
       }, 1500);
     } catch (error) {
       console.error("Registration Error:", error.message);
-      setLoading(false);
       setRegError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 

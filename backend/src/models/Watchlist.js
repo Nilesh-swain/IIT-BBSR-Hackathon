@@ -26,7 +26,7 @@ const WatchlistSchema = new mongoose.Schema(
 
     // 📡 TELEMETRY DATA (Better than raw Object)
     asteroidData: {
-      type: mongoose.Schema.Types.Mixed, // flexible but still safe
+      type: mongoose.Schema.Types.Mixed,
       required: [true, "Telemetry data required"],
     },
 
@@ -55,15 +55,6 @@ WatchlistSchema.index(
 /**
  * 🛡️ PRE-SAVE SECURITY CHECK
  */
-WatchlistSchema.pre("save", async function () {
-  if (!this.user) {
-    throw new Error("SECURITY_ERROR: Cannot save without user reference.");
-  }
-
-  if (!this.asteroidId) {
-    throw new Error("VALIDATION_ERROR: Asteroid ID missing.");
-  }
-});
 
 
 /**

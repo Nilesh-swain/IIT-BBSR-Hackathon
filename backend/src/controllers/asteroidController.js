@@ -16,18 +16,23 @@ export const getAsteroids = async (req, res, next) => {
       query.is_potentially_hazardous_asteroid = hazardous === "true";
     if (search) query.name = { $regex: search, $options: "i" };
 
-    const asteroids = await Asteroid.find(query)
-      .sort({ cached_at: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+    const pageNumber = parseInt(page, 10) || 1;
+    const limitNumber = Math.min(parseInt(limit, 10) || 50, 100);
 
-    const total = await Asteroid.countDocuments(query);
+    const [asteroids, total] = await Promise.all([
+      Asteroid.find(query)
+        .sort({ cached_at: -1 })
+        .limit(limitNumber)
+        .skip((pageNumber - 1) * limitNumber)
+        .lean(),
+      Asteroid.countDocuments(query),
+    ]);
 
     res.status(200).json({
       success: true,
       count: asteroids.length,
       total,
-      page: parseInt(page),
+      page: pageNumber,
       asteroids,
     });
   } catch (error) {
@@ -75,7 +80,8 @@ export const getHazardous = async (req, res, next) => {
       is_potentially_hazardous_asteroid: true,
     })
       .sort({ cached_at: -1 })
-      .limit(20);
+      .limit(20)
+      .lean();
 
     res.status(200).json({
       success: true,
