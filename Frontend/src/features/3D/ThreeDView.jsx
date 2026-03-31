@@ -41,6 +41,8 @@ import FlightRig from "./components/FlightRig";
 import PhotonicPath from "./components/PhotonicPath";
 import { CELESTIAL_DATA, SYSTEM_CONFIG } from "./data/celestialData";
 
+import { apiGet } from "../../utils/api.js";
+
 // --- SYSTEM CONSTANTS ---
 const NASA_API_KEY = import.meta.env.VITE_NASA_API_KEY || "DEMO_KEY";
 const NASA_BASE_URL = "https://api.nasa.gov/neo/rest/v1";
@@ -51,7 +53,7 @@ const formatKM = (v) => (v ? Math.round(v).toLocaleString() : "0");
 const normalizeNeo = (obj, index) => {
   const approach = obj?.close_approach_data?.[0] || {};
   return {
-    id: obj.id,
+    id: obj.neo_reference_id || obj.id,
     name: (obj.name || `NEO-${index}`).replace(/[()]/g, ""),
     is_hazardous: Boolean(obj.is_potentially_hazardous_asteroid),
     velocity: parseFloat(approach?.relative_velocity?.kilometers_per_hour || 0),
@@ -252,15 +254,26 @@ export default function ThreeDView() {
     try {
       setLoading(true);
       const today = new Date().toISOString().split("T")[0];
-      const res = await fetch(`${NASA_BASE_URL}/feed?start_date=${today}&api_key=${NASA_API_KEY}`);
+      const res = await fetch(`${NASA_BASE_URL}/feed?start_date=${today}&end_date=${today}&api_key=${NASA_API_KEY}`);
       if (!res.ok) throw new Error("API_LIMIT");
       const data = await res.json();
-      const raw = Object.values(data.near_earth_objects || {}).flat().slice(0, 30).map(normalizeNeo);
+      const raw = Object.values(data.near_earth_objects || {}).flat().map(normalizeNeo);
       setNeos(raw);
       setStats(s => ({ ...s, objects: raw.length, threats: raw.filter(n => n.is_hazardous).length }));
       setLatestEvent(`TELEMETRY_LINK_ESTABLISHED: ${raw.length} TARGETS`);
     } catch (e) {
       setLatestEvent("UPLINK_FAILURE: EMERGENCY RELAY ACTIVE");
+      try {
+        const cachedData = await apiGet("/asteroids?limit=30");
+        if (cachedData?.success && cachedData.asteroids) {
+          const raw = cachedData.asteroids.map(normalizeNeo);
+          setNeos(raw);
+          setStats(s => ({ ...s, objects: raw.length, threats: raw.filter(n => n.is_hazardous).length }));
+          setLatestEvent(`BACKUP_RELAY_ESTABLISHED: ${raw.length} TARGETS`);
+        }
+      } catch (err) {
+        console.error("Backup failed", err);
+      }
     } finally {
       setLoading(false);
     }

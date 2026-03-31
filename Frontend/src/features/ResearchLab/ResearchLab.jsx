@@ -512,6 +512,7 @@ const ResearchLab = () => {
   const [publishing, setPublishing] = useState(false);
   const [search, setSearch] = useState("");
   const [paperFile, setPaperFile] = useState(null);
+  const [nasaStats, setNasaStats] = useState({ total: 0, hazardous: 0 });
   const { addNotification } = useNotifications();
   
   const [form, setForm] = useState({
@@ -532,9 +533,32 @@ const ResearchLab = () => {
           apiGet("/research?limit=50"),
           apiGet("/auth/profile"),
         ]);
+        
         setAsteroids(asteroidRes?.asteroids || []);
         setPapers(paperRes?.papers || []);
         setProfile(profileRes?.data || null);
+
+        // Fetch Real-time Daily Data from NASA API for accurate top metrics
+        const today = new Date().toISOString().split("T")[0];
+        const NASA_KEY = import.meta.env.VITE_NASA_API_KEY || "DEMO_KEY";
+        const NASA_URL = import.meta.env.VITE_NASA_BASE_URL || "https://api.nasa.gov/neo/rest/v1";
+        
+        try {
+          const res = await fetch(`${NASA_URL}/feed?start_date=${today}&end_date=${today}&api_key=${NASA_KEY}`);
+          const data = await res.json();
+          const dailyObjects = Object.values(data.near_earth_objects || {}).flat();
+          
+          setNasaStats({
+            total: dailyObjects.length,
+            hazardous: dailyObjects.filter(obj => obj.is_potentially_hazardous_asteroid).length
+          });
+        } catch (nasaErr) {
+          console.warn("NASA API daily stats failed, using database approximations.", nasaErr.message);
+          setNasaStats({
+            total: asteroidRes?.total || 100,
+            hazardous: asteroidRes?.asteroids?.filter(a => a.is_potentially_hazardous_asteroid).length || 0
+          });
+        }
       } catch (error) {
         console.error("Uplink failed:", error);
       } finally {
@@ -546,10 +570,10 @@ const ResearchLab = () => {
 
   // --- Logic & Filtering ---
   const metrics = useMemo(() => ({
-    total: asteroids.length,
-    hazardous: asteroids.filter(a => a.is_potentially_hazardous_asteroid).length,
+    total: nasaStats.total ?? asteroids.length,
+    hazardous: nasaStats.hazardous ?? asteroids.filter(a => a.is_potentially_hazardous_asteroid).length,
     archived: papers.length
-  }), [asteroids, papers]);
+  }), [asteroids, papers, nasaStats]);
 
   const filteredPapers = useMemo(() => {
     const term = search.toLowerCase();

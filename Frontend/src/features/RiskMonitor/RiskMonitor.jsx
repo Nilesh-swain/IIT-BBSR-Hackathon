@@ -3,9 +3,10 @@ import {
   Radar, ShieldAlert, ChevronDown, ChevronUp, 
   Activity, Clock, Maximize2, ExternalLink, Search 
 } from "lucide-react";
+import { apiGet } from "../../utils/api.js";
 
 const API_KEY = import.meta.env.VITE_NASA_API_KEY;
-const BASE_URL = import.meta.env.VITE_NASA_BASE_URL;
+const BASE_URL = import.meta.env.VITE_NASA_BASE_URL || "https://api.nasa.gov/neo/rest/v1";
 
 const RiskMonitor = () => {
   const [hazardous, setHazardous] = useState([]);
@@ -17,21 +18,33 @@ const RiskMonitor = () => {
     try {
       setLoading(true);
       const today = new Date().toISOString().split("T")[0];
-      const response = await fetch(`${BASE_URL}/feed?start_date=${today}&end_date=${today}&api_key=${API_KEY}`);
+      const targetUrl = `${BASE_URL}/feed?start_date=${today}&end_date=${today}&api_key=${API_KEY || "DEMO_KEY"}`;
+      
+      const response = await fetch(targetUrl);
+      if (!response.ok) throw new Error("NASA API Request Failed");
+      
       const data = await response.json();
       const allObjects = Object.values(data.near_earth_objects).flat();
       
       const filtered = allObjects
         .filter(obj => obj.is_potentially_hazardous_asteroid)
         .sort((a, b) => {
-          const distA = parseFloat(a.close_approach_data[0].miss_distance.kilometers);
-          const distB = parseFloat(b.close_approach_data[0].miss_distance.kilometers);
+          const distA = parseFloat(a.close_approach_data?.[0]?.miss_distance?.kilometers || 0);
+          const distB = parseFloat(b.close_approach_data?.[0]?.miss_distance?.kilometers || 0);
           return distA - distB;
         });
 
       setHazardous(filtered);
     } catch (err) {
-      console.error("System Link Failure", err);
+      console.warn("NASA Uplink Failure. Switching to Local Database:", err.message);
+      try {
+        const cachedData = await apiGet("/asteroids/hazardous");
+        if (cachedData?.success && cachedData.hazardous) {
+          setHazardous(cachedData.hazardous);
+        }
+      } catch (backendErr) {
+        console.error("Critical: Registry Offline.", backendErr);
+      }
     } finally {
       setLoading(false);
     }

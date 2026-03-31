@@ -105,12 +105,11 @@ const runInitialSync = async () => {
   }
 };
 
-// Start DB then Start Sync (Sync is now decoupled)
-await connectDB();
-console.log("🚀 [SYSTEM_UPLINK]: Primary Database Confirmed. Initializing Data Registry...");
-runInitialSync();
+// --- 4. HEALTH CHECK & ROOT ---
+app.get("/", (req, res) => {
+  res.send("Antariksh API is Live and Operational 🚀");
+});
 
-// --- 4. HEALTH CHECK ---
 app.get("/status", (req, res) => {
   res.status(200).json({
     success: true,
@@ -138,11 +137,24 @@ app.use((req, res) => {
 // --- 7. GLOBAL ERROR HANDLER ---
 app.use(errorMiddleware);
 
-// --- 8. SERVER ---
+// --- 8. SERVER BINDING ---
 const PORT = process.env.PORT || 5000;
 const httpServer = createServer(app);
 
-// --- 9. CRON JOB (NASA DATA SYNC) ---
+// Start listening immediately to pass Render's port scan timeout
+httpServer.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Server bound and listening on port ${PORT}`);
+});
+
+// --- 9. DATABASE & SYNC (Run async so we don't block the port binding) ---
+connectDB().then(() => {
+  console.log("🚀 [SYSTEM_UPLINK]: Primary Database Confirmed. Initializing Data Registry...");
+  runInitialSync();
+}).catch(err => {
+  console.error("DB Boot Failed:", err);
+});
+
+// --- 10. CRON JOB (NASA DATA SYNC) ---
 cron.schedule("0 */6 * * *", async () => {
   try {
     console.log("🌌 Updating asteroid cache...");
@@ -160,9 +172,4 @@ cron.schedule("0 */6 * * *", async () => {
   } catch (error) {
     console.error("❌ Cron failed:", error.message);
   }
-});
-
-// --- 10. START SERVER ---
-httpServer.listen(PORT, () => {
-  console.log(`🚀 Server running: http://localhost:${PORT}`);
 });

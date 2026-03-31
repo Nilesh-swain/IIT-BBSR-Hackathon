@@ -62,9 +62,10 @@ const DataHub = () => {
     const fetchRegistry = async () => {
       try {
         setLoading(true);
+        const today = new Date().toISOString().split("T")[0];
         
-        // Ensure we have a valid absolute URL for NASA
-        const targetUrl = `${NASA_BASE_URL}/feed?api_key=${NASA_API_KEY || "DEMO_KEY"}`;
+        // Ensure we fetch exactly today's data to sync with other telemetry modules
+        const targetUrl = `${NASA_BASE_URL}/feed?start_date=${today}&end_date=${today}&api_key=${NASA_API_KEY || "DEMO_KEY"}`;
         
         // Defensive check: If NASA_BASE_URL was somehow relative vs absolute
         if (!targetUrl.startsWith("http")) {
