@@ -141,44 +141,41 @@ export const uploadPaper = async (req, res, next) => {
 export const registerUser = async (req, res, next) => {
   try {
     const { username, name, email, password } = req.body;
-    console.log("?? Incoming Registration Uplink:", { username, email });
+    console.log(">> Incoming Registration Uplink:", { username, email });
 
     if (!username || !email || !password) {
-      console.warn("?? Registration Failed: Incomplete Payload");
+      console.warn(">> Registration Failed: Incomplete Payload");
       return res.status(400).json({ success: false, message: "Incomplete credentials." });
     }
 
     let user = await User.findOne({ email });
     if (user) {
-      console.warn("?? Registration Failed: Duplicate Email", email);
+      console.warn(">> Registration Failed: Duplicate Email", email);
       return res.status(409).json({ success: false, message: "Identity already registered. Please login." });
     }
 
     user = new User({ username, name: name || username, email, password });
     const otp = user.generateOTP();
     
-    console.log("?? Attempting Database Persistence for:", email);
-    await user.save(); // ??? CRITICAL: Stored in Atlas here
-    console.log("? Database Persistence Successful:", email);
+    console.log(">> Attempting Database Persistence for:", email);
+    await user.save();
+    console.log(">> Database Persistence Successful:", email);
 
-    try {
-      console.log("?? Dispatching Security OTP to:", email);
-      await sendEmail({
-        email: user.email,
-        subject: "Antariksh Security Protocol: Verification OTP",
-        otp,
-      });
-      res.status(201).json({ success: true, message: "Identity registered. OTP dispatched." });
-    } catch (err) {
-      console.error("?? Mail Relay Failure:", err.message);
-      res.status(201).json({ 
-        success: true, 
-        message: "Identity registered, but mail relay failed. Please verify later.",
-        warning: "MAIL_RELAY_ERROR" 
-      });
-    }
+    // Respond IMMEDIATELY — don't wait for email
+    res.status(201).json({ success: true, message: "Identity registered. OTP dispatched." });
+
+    // Fire-and-forget: send OTP email in the background
+    sendEmail({
+      email: user.email,
+      subject: "Antariksh Security Protocol: Verification OTP",
+      otp,
+    }).then(() => {
+      console.log(">> OTP Email sent successfully to:", email);
+    }).catch((err) => {
+      console.error(">> Mail Relay Failure (background):", err.message);
+    });
   } catch (error) {
-    console.error("? Registration Exception:", error.message);
+    console.error(">> Registration Exception:", error.message);
     next(error);
   }
 };
@@ -276,25 +273,20 @@ export const resendOTP = async (req, res, next) => {
     const otp = user.generateOTP();
     await user.save();
 
-    try {
-      console.log("?? Resending Security OTP to:", email);
-      await sendEmail({
-        email: user.email,
-        subject: "Antariksh Security Protocol: New Verification OTP",
-        otp,
-      });
-      res.status(200).json({ success: true, message: "New OTP dispatched." });
-    } catch (err) {
-      console.error("?? Mail Relay Failure (Resend):", err.message);
-      res.status(500).json({ success: false, message: "Mail relay failure. Please retry later." });
-    }
+    // Respond IMMEDIATELY
+    res.status(200).json({ success: true, message: "New OTP dispatched." });
+
+    // Fire-and-forget: send email in background
+    sendEmail({
+      email: user.email,
+      subject: "Antariksh Security Protocol: New Verification OTP",
+      otp,
+    }).then(() => {
+      console.log(">> Resend OTP Email sent to:", email);
+    }).catch((err) => {
+      console.error(">> Mail Relay Failure (Resend):", err.message);
+    });
   } catch (error) {
     next(error);
   }
-})
-    .status(200)
-    .json({ success: true, message: "Session Terminated." });
 };
-
-
-

@@ -1,14 +1,15 @@
 export const sendToken = (user, statusCode, res) => {
   const token = user.getJWTToken();
+  const isProduction = process.env.NODE_ENV === "production";
 
-  // Options for cookie
+  // Options for cookie — adapt to local dev vs production
   const options = {
     expires: new Date(
       Date.now() + (process.env.COOKIE_EXPIRE || 5) * 24 * 60 * 60 * 1000
     ),
-    httpOnly: true, // 🛡️ CRITICAL: Prevents frontend JS from reading the token (Anti-XSS)
-    secure: true, // Always true for cross-site cookies
-    sameSite: "None", // 🛡️ CRITICAL for cross-domain auth on Render
+    httpOnly: true,
+    secure: isProduction,           // false on localhost (no HTTPS), true in production
+    sameSite: isProduction ? "None" : "Lax",  // Lax for localhost, None for cross-domain prod
   };
 
   // Remove password from the response object
@@ -17,6 +18,6 @@ export const sendToken = (user, statusCode, res) => {
   res.status(statusCode).cookie("token", token, options).json({
     success: true,
     user,
-    token, // We send it in JSON too just for Postman visibility, but the Browser will use the Cookie.
+    token,
   });
 };

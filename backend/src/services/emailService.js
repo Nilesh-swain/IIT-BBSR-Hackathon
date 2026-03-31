@@ -1,16 +1,27 @@
 import nodemailer from "nodemailer";
 
-const createTransporter = () =>
-  nodemailer.createTransport({
-    service: "gmail",
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
+// --- REUSABLE TRANSPORTER (single persistent connection pool) ---
+// Creating a transporter is expensive (TLS handshake). Do it ONCE at startup.
+let transporter = null;
+
+const getTransporter = () => {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      pool: true,           // Use connection pooling for speed
+      maxConnections: 3,    // Allow up to 3 simultaneous connections
+      maxMessages: 100,     // Send up to 100 messages per connection
+    });
+  }
+  return transporter;
+};
 
 const PRIMARY_ORANGE = "#FF5E00";
 const BG_BLACK = "#0A0A0A";
@@ -19,7 +30,7 @@ const TEXT_GRAY = "#888888";
 
 export const sendEmail = async (options) => {
   try {
-    const transporter = createTransporter();
+    const transport = getTransporter();
 
     const mailOptions = {
       from: `"Antariksh Command" <${process.env.EMAIL_USER}>`,
@@ -66,7 +77,7 @@ export const sendEmail = async (options) => {
       `,
     };
 
-    return await transporter.sendMail(mailOptions);
+    return await transport.sendMail(mailOptions);
   } catch (error) {
     console.error("Email Dispatch Error (OTP):", error.message);
     throw error;
@@ -75,7 +86,7 @@ export const sendEmail = async (options) => {
 
 export const sendVaultNotification = async (email, asteroidName) => {
   try {
-    const transporter = createTransporter();
+    const transport = getTransporter();
     const mailOptions = {
       from: `"Antariksh Systems" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -111,7 +122,7 @@ export const sendVaultNotification = async (email, asteroidName) => {
       `,
     };
 
-    return await transporter.sendMail(mailOptions);
+    return await transport.sendMail(mailOptions);
   } catch (error) {
     console.error("Email Dispatch Error (Vault):", error.message);
     return null;
@@ -128,7 +139,7 @@ export const sendResearchPublicationNotice = async ({
   try {
     if (!recipients?.length) return null;
 
-    const transporter = createTransporter();
+    const transport = getTransporter();
     const mailOptions = {
       from: `"Antariksh Research Grid" <${process.env.EMAIL_USER}>`,
       to: process.env.EMAIL_USER,
@@ -175,7 +186,7 @@ export const sendResearchPublicationNotice = async ({
       `,
     };
 
-    return await transporter.sendMail(mailOptions);
+    return await transport.sendMail(mailOptions);
   } catch (error) {
     console.error("Email Dispatch Error (Research):", error.message);
     return null;
