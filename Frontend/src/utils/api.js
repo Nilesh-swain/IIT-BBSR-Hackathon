@@ -4,9 +4,9 @@
  * Includes credentials for JWT cookies
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function apiFetch(endpoint, options = {}) {
+export async function apiFetch(endpoint, options = {}, retries = 3, backoff = 1000) {
   const url = `${API_BASE}${endpoint}`;
   const isFormData = options.body instanceof FormData;
 
@@ -22,7 +22,7 @@ export async function apiFetch(endpoint, options = {}) {
   };
 
   try {
-    console.log(`🌌 [API_UPLINK]: ${config.method || "GET"} ${url} | Trace: ${new Date().toISOString()}`);
+    console.log(`🌌 [API_UPLINK]: ${config.method || "GET"} ${url} | Attempt: ${4 - retries} | Trace: ${new Date().toISOString()}`);
     const response = await fetch(url, config);
     console.log(`📡 [API_DOWNLINK]: ${url} | Status: ${response.status} ${response.statusText}`);
 
@@ -57,7 +57,21 @@ export async function apiFetch(endpoint, options = {}) {
     console.log(`✅ [API_SUCCESS_TEXT]: ${url}`, textData);
     return textData;
   } catch (error) {
+    const isNetworkError = error instanceof TypeError || error.message.includes("Failed to fetch");
+    
+    if (retries > 0 && isNetworkError) {
+      console.warn(`⚠️ [API_RETRY]: Retrying ${url} in ${backoff}ms (${retries} retries left). Reason: ${error.message}`);
+      await sleep(backoff);
+      return apiFetch(endpoint, options, retries - 1, backoff * 2);
+    }
+
     console.error("⛔ [API_FATAL_EXCEPTION]:", error);
+    
+    // Enriching the error for the UI
+    if (isNetworkError) {
+      error.message = "Unable to connect to the server. It might be waking up from sleep. Please try again in a few seconds.";
+    }
+    
     throw error;
   }
 }

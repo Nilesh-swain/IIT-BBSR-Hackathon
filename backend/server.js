@@ -41,9 +41,13 @@ app.use(cookieParser());
 // --- 2. CORS CONFIG ---
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      // Accept all origins for Hackathon flexibility (Vercel previews, local, etc)
+      // while still satisfying the 'credentials: true' requirement
+      callback(null, true);
+    },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
@@ -115,6 +119,24 @@ app.get("/status", (req, res) => {
     success: true,
     status: "Active",
     message: "Backend is running 🚀",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Duplicating under /api for frontend utility compatibility
+app.get("/api/status", (req, res) => {
+  res.status(200).json({
+    success: true,
+    status: "Active",
+    message: "Backend is running 🚀",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get("/api/test", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Connectivity confirmed! 🚀",
     timestamp: new Date().toISOString(),
   });
 });
