@@ -41,6 +41,7 @@ export const listResearchPapers = async (req, res, next) => {
 export const publishResearchPaper = async (req, res, next) => {
   try {
     const { title, abstract, asteroidId, keywords = "", institution = "" } = req.body;
+    const currentUserId = req.user?._id || req.user?.id;
 
     if (!req.file) {
       return res.status(400).json({
@@ -63,7 +64,14 @@ export const publishResearchPaper = async (req, res, next) => {
       });
     }
 
-    const author = await User.findById(req.user.id).select(
+    if (!currentUserId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required to publish research.",
+      });
+    }
+
+    const author = await User.findById(currentUserId).select(
       "name username email address papers",
     );
 

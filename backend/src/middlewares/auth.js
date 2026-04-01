@@ -12,13 +12,18 @@ export const protect = async (req, res, next) => {
     }
 
     const decodedData = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decodedData.id)
+    const user = await User.findById(decodedData.id)
       .select("_id email username role isVerified")
       .lean();
 
-    if (!req.user) {
+    if (!user) {
       return res.status(401).json({ message: "Invalid session" });
     }
+
+    req.user = {
+      ...user,
+      id: user._id?.toString?.() || String(user._id),
+    };
 
     next();
   } catch (error) {

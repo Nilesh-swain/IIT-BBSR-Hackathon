@@ -589,9 +589,24 @@ const ResearchLab = () => {
   };
 
   const handlePublish = async () => {
-    if (!paperFile || !form.title.trim() || !form.asteroidId) {
-      return alert("SYSTEM_ERROR: Required telemetry fields missing.");
+    if (!profile?._id && !profile?.id) {
+      addNotification({
+        title: "Authentication Required",
+        message: "Your researcher profile is not loaded yet. Please sign in again and retry.",
+        type: "ERROR",
+      });
+      return;
     }
+
+    if (!paperFile || !form.title.trim() || !form.abstract.trim() || !form.asteroidId) {
+      addNotification({
+        title: "Missing Fields",
+        message: "Title, abstract, asteroid selection, and a PDF file are required.",
+        type: "ERROR",
+      });
+      return;
+    }
+
     setPublishing(true);
     try {
       const formData = new FormData();
@@ -609,7 +624,11 @@ const ResearchLab = () => {
         });
       }
     } catch (err) {
-      alert(err.message || "TRANSMISSION_FAILED");
+      addNotification({
+        title: "Publish Failed",
+        message: err.message || "Research publication failed.",
+        type: "ERROR",
+      });
     } finally {
       setPublishing(false);
     }
