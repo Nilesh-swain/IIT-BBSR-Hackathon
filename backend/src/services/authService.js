@@ -4,6 +4,8 @@ import OtpVerification from "../models/OtpVerification.js";
 import { sendEmail } from "./emailService.js";
 
 const OTP_TTL_MS = 5 * 60 * 1000;
+const AUTH_SESSION_FIELDS =
+  "username name email avatarUrl bio address role isVerified createdAt updatedAt";
 
 const generateOtp = () =>
   Math.floor(100000 + Math.random() * 900000).toString();
@@ -12,10 +14,12 @@ const normalizeEmail = (email = "") => email.trim().toLowerCase();
 const normalizeUsername = (username = "") => username.trim();
 
 const queueOtpEmail = ({ email, otp, subject }) => {
-  sendEmail({ email, otp, subject }).catch((error) => {
-    console.error("OTP email dispatch failed:", {
-      email,
-      message: error.message,
+  setImmediate(() => {
+    sendEmail({ email, otp, subject }).catch((error) => {
+      console.error("OTP email dispatch failed:", {
+        email,
+        message: error.message,
+      });
     });
   });
 };
@@ -194,7 +198,9 @@ export const authenticateUser = async ({ email, password }) => {
     };
   }
 
-  const user = await User.findOne({ email: normalizedEmail }).select("+password");
+  const user = await User.findOne({ email: normalizedEmail }).select(
+    `${AUTH_SESSION_FIELDS} +password`,
+  );
 
   if (!user || !(await user.comparePassword(password))) {
     return {
