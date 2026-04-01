@@ -122,7 +122,6 @@ app.use(cookieParser());
 app.use(
   cors(corsOptions)
 );
-app.options("*", cors(corsOptions));
 
 // --- 3. DATABASE CONNECTION ---
 const cleanupOrphanWatchlistRecords = async () => {
@@ -230,7 +229,7 @@ app.use("/api/community", communityRoutes);
 app.use("/api/research", researchRoutes);
 
 // --- 6. 404 HANDLER ---
-app.use((req, res) => {
+app.use("/{*any}", (req, res) => {
   res.status(404).json({
     success: false,
     message: `Route not found: ${req.originalUrl}`,
