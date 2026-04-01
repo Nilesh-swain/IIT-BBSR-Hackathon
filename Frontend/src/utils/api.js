@@ -13,7 +13,7 @@ export const buildApiUrl = (endpoint) => {
   const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
 
   if (!normalizedBase) {
-    throw new Error("VITE_API_URL is not defined");
+    return normalizedEndpoint;
   }
 
   return `${normalizedBase}${normalizedEndpoint}`;
