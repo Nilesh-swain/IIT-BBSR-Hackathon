@@ -44,18 +44,23 @@ export const createRegistrationOtp = async ({ username, name, email, password })
   }
 
   const [existingEmailUser, existingUsernameUser] = await Promise.all([
-    User.findOne({ email: normalizedEmail }).select("_id").lean(),
-    User.findOne({ username: normalizedUsername }).select("_id").lean(),
+    User.findOne({ email: normalizedEmail }).select("_id isVerified username email"),
+    User.findOne({ username: normalizedUsername }).select("_id isVerified username email"),
   ]);
 
-  if (existingEmailUser) {
+  if (existingEmailUser?.isVerified) {
     return {
       status: 409,
       body: { success: false, message: "Identity already registered. Please login." },
     };
   }
 
-  if (existingUsernameUser) {
+  if (
+    existingUsernameUser?.isVerified ||
+    (existingUsernameUser &&
+      existingEmailUser &&
+      existingUsernameUser._id.toString() !== existingEmailUser._id.toString())
+  ) {
     return {
       status: 409,
       body: { success: false, message: "Username is already in use." },
@@ -65,6 +70,24 @@ export const createRegistrationOtp = async ({ username, name, email, password })
   const passwordHash = await bcrypt.hash(password, 10);
   const otp = generateOtp();
   const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+  let pendingUser = existingEmailUser || existingUsernameUser || null;
+
+  if (pendingUser) {
+    pendingUser.username = normalizedUsername;
+    pendingUser.name = normalizedName;
+    pendingUser.email = normalizedEmail;
+    pendingUser.password = passwordHash;
+    pendingUser.isVerified = false;
+    await pendingUser.save();
+  } else {
+    pendingUser = await User.create({
+      username: normalizedUsername,
+      name: normalizedName,
+      email: normalizedEmail,
+      password: passwordHash,
+      isVerified: false,
+    });
+  }
 
   await OtpVerification.findOneAndUpdate(
     { email: normalizedEmail },
@@ -72,6 +95,7 @@ export const createRegistrationOtp = async ({ username, name, email, password })
       $set: {
         username: normalizedUsername,
         name: normalizedName,
+        userId: pendingUser._id,
         passwordHash,
         otp,
         expiresAt,
@@ -121,26 +145,25 @@ export const verifyRegistrationOtp = async ({ email, otp }) => {
     };
   }
 
-  const [existingEmailUser, existingUsernameUser] = await Promise.all([
-    User.findOne({ email: normalizedEmail }).select("_id").lean(),
-    User.findOne({ username: pendingVerification.username }).select("_id").lean(),
-  ]);
+  const user =
+    (pendingVerification.userId
+      ? await User.findById(pendingVerification.userId)
+      : await User.findOne({ email: normalizedEmail })) ||
+    null;
 
-  if (existingEmailUser || existingUsernameUser) {
-    await OtpVerification.deleteOne({ _id: pendingVerification._id });
+  if (!user) {
     return {
-      status: 409,
-      body: { success: false, message: "Identity already registered. Please login." },
+      status: 404,
+      body: { success: false, message: "Pending account not found. Please register again." },
     };
   }
 
-  const user = await User.create({
-    username: pendingVerification.username,
-    name: pendingVerification.name || pendingVerification.username,
-    email: pendingVerification.email,
-    password: pendingVerification.passwordHash,
-    isVerified: true,
-  });
+  user.username = pendingVerification.username;
+  user.name = pendingVerification.name || pendingVerification.username;
+  user.email = pendingVerification.email;
+  user.password = pendingVerification.passwordHash;
+  user.isVerified = true;
+  await user.save();
 
   await OtpVerification.deleteOne({ _id: pendingVerification._id });
 

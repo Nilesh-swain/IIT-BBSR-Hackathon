@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema(
     bio: { type: String, default: "Explorer of the vast cosmos." },
     address: { type: String, default: "Odisha, India" },
     role: { type: String, default: "Architect" },
-    isVerified: { type: Boolean, default: true },
+    isVerified: { type: Boolean, default: false },
     papers: [
       {
         title: String,
