@@ -29,6 +29,7 @@ import researchRoutes from "./src/routes/researchRoutes.js";
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 const DB_RETRY_DELAYS_MS = [2000, 5000, 10000, 20000];
+const DATABASE_NAME = process.env.MONGO_DB_NAME || "antariksh";
 const allowedOrigins = Array.from(
   new Set(
     [
@@ -62,6 +63,7 @@ const getStatusPayload = () => ({
   service: "antariksh-api",
   uptimeSeconds: Math.round(process.uptime()),
   database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+  databaseName: mongoose.connection.name || DATABASE_NAME,
 });
 const isAllowedOrigin = (origin) => !origin || allowedOrigins.includes(origin);
 const corsOptions = {
@@ -143,11 +145,15 @@ const connectDB = async () => {
   for (let attempt = 0; attempt <= DB_RETRY_DELAYS_MS.length; attempt += 1) {
     try {
       const conn = await mongoose.connect(process.env.MONGO_URI, {
+        dbName: DATABASE_NAME,
         family: 4,
         serverSelectionTimeoutMS: 5000,
       });
 
-      logEvent("db_connected", { host: conn.connection.host });
+      logEvent("db_connected", {
+        host: conn.connection.host,
+        databaseName: conn.connection.name,
+      });
       await cleanupOrphanWatchlistRecords();
       return conn;
     } catch (error) {

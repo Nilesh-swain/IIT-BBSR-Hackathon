@@ -95,6 +95,8 @@ export const createRegistrationOtp = async ({ username, name, email, password })
     status: 202,
     body: {
       success: true,
+      verificationRequired: true,
+      stage: "otp_pending",
       message: "Verification OTP sent. Please check your email.",
       email: normalizedEmail,
       expiresInSeconds: OTP_TTL_MS / 1000,
@@ -181,6 +183,8 @@ export const resendRegistrationOtp = async ({ email }) => {
     status: 202,
     body: {
       success: true,
+      verificationRequired: true,
+      stage: "otp_pending",
       message: "A new OTP has been queued for delivery.",
       email: pendingVerification.email,
       expiresInSeconds: OTP_TTL_MS / 1000,
