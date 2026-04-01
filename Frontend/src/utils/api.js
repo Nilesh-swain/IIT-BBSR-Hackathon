@@ -7,23 +7,32 @@
 import { API_BASE } from "../config/api.js";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const RETRY_DELAYS_MS = [2000, 5000, 10000, 20000];
+const DEFAULT_TIMEOUT_MS = 20000;
+
+const createApiError = (message, details = {}) => {
+  const error = new Error(message);
+  Object.assign(error, details);
+  return error;
+};
 
 export const buildApiUrl = (endpoint) => {
   const normalizedBase = API_BASE?.replace(/\/+$/, "");
   const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const strippedEndpoint = normalizedEndpoint.replace(/^\/api(?=\/|$)/, "");
 
   if (!normalizedBase) {
-    return normalizedEndpoint;
+    return `/api${strippedEndpoint}`;
   }
 
-  return `${normalizedBase}${normalizedEndpoint}`;
+  return `${normalizedBase}${strippedEndpoint}`;
 };
 
-export async function apiFetch(endpoint, options = {}, retries = 3, backoff = 1000) {
+export async function apiFetch(endpoint, options = {}, retryIndex = 0) {
   const url = buildApiUrl(endpoint);
   const isFormData = options.body instanceof FormData;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
   const config = {
     headers: isFormData
@@ -38,62 +47,115 @@ export async function apiFetch(endpoint, options = {}, retries = 3, backoff = 10
   };
 
   try {
-    console.log(`🌌 [API_UPLINK]: ${config.method || "GET"} ${url} | Attempt: ${4 - retries} | Trace: ${new Date().toISOString()}`);
+    console.log(
+      JSON.stringify({
+        scope: "api_request",
+        method: config.method || "GET",
+        url,
+        attempt: retryIndex + 1,
+        timestamp: new Date().toISOString(),
+      }),
+    );
+
     const response = await fetch(url, config);
-    console.log(`📡 [API_DOWNLINK]: ${url} | Status: ${response.status} ${response.statusText}`);
+    console.log(
+      JSON.stringify({
+        scope: "api_response",
+        method: config.method || "GET",
+        url,
+        status: response.status,
+        statusText: response.statusText,
+      }),
+    );
 
     if (!response.ok) {
-      // ⚠️ Use text() first to avoid 'Unexpected end of JSON input'
       const errorText = await response.text();
-      console.error(`🛑 [API_ERROR]: ${url} | Status: ${response.status} | Msg: ${errorText}`);
-      
+
+      console.error(
+        JSON.stringify({
+          scope: "api_error",
+          method: config.method || "GET",
+          url,
+          status: response.status,
+          body: errorText,
+        }),
+      );
+
       let errorData = {};
       try {
         errorData = JSON.parse(errorText);
-      } catch (e) {
+      } catch {
         errorData = { message: errorText || `HTTP ${response.status}` };
       }
-      throw new Error(errorData.message || `HTTP ${response.status}`);
+
+      throw createApiError(errorData.message || `HTTP ${response.status}`, {
+        status: response.status,
+        responseBody: errorData,
+      });
     }
 
-    // ✅ Handle 204 No Content or empty bodies safely
     if (response.status === 204) {
-      console.log(`✅ [API_SUCCESS]: ${url} | No Content`);
       return null;
     }
-    
+
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.includes("application/json")) {
       const data = await response.json();
-      console.log(`✅ [API_SUCCESS_JSON]: ${url}`, data);
+
+      if (data === null || typeof data !== "object") {
+        throw createApiError("Invalid JSON response received from server.", {
+          status: response.status,
+        });
+      }
+
       return data;
     }
-    
-    const textData = await response.text();
-    console.log(`✅ [API_SUCCESS_TEXT]: ${url}`, textData);
-    return textData;
+
+    throw createApiError("Unexpected response format received from server.", {
+      status: response.status,
+      contentType,
+    });
   } catch (error) {
     const isNetworkError =
       error instanceof TypeError ||
       error.name === "AbortError" ||
       error.message.includes("Failed to fetch");
-    
-    if (retries > 0 && isNetworkError) {
-      console.warn(`⚠️ [API_RETRY]: Retrying ${url} in ${backoff}ms (${retries} retries left). Reason: ${error.message}`);
-      await sleep(backoff);
-      return apiFetch(endpoint, options, retries - 1, backoff * 2);
+
+    if (isNetworkError && retryIndex < RETRY_DELAYS_MS.length) {
+      const delay = RETRY_DELAYS_MS[retryIndex];
+
+      console.warn(
+        JSON.stringify({
+          scope: "api_retry",
+          method: config.method || "GET",
+          url,
+          attempt: retryIndex + 1,
+          nextDelayMs: delay,
+          reason: error.message,
+        }),
+      );
+
+      await sleep(delay);
+      return apiFetch(endpoint, options, retryIndex + 1);
     }
 
-    console.error("⛔ [API_FATAL_EXCEPTION]:", error);
-    
-    // Enriching the error for the UI
+    console.error(
+      JSON.stringify({
+        scope: "api_fatal",
+        method: config.method || "GET",
+        url,
+        message: error.message,
+        status: error.status || null,
+      }),
+    );
+
     if (isNetworkError) {
       error.message =
         error.name === "AbortError"
           ? "The request timed out. Please try again."
-          : "Unable to connect to the server. It might be waking up from sleep. Please try again in a few seconds.";
+          : "Server is waking up, please wait and try again.";
     }
-    
+
     throw error;
   } finally {
     clearTimeout(timeout);

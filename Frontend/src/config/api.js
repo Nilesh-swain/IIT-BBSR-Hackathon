@@ -1,10 +1,12 @@
 const trimTrailingSlash = (value = "") => value.replace(/\/+$/, "");
+const ensureApiSuffix = (value = "") =>
+  value.endsWith("/api") ? value : `${trimTrailingSlash(value)}/api`;
 
 const resolveApiBase = () => {
   const envUrl = trimTrailingSlash(import.meta.env.VITE_API_URL || "");
 
   if (envUrl) {
-    return envUrl;
+    return ensureApiSuffix(envUrl);
   }
 
   if (typeof window === "undefined") {
@@ -16,10 +18,10 @@ const resolveApiBase = () => {
     window.location.hostname === "127.0.0.1";
 
   if (isLocalHost) {
-    return "http://localhost:5000";
+    return "http://localhost:5000/api";
   }
 
-  return trimTrailingSlash(window.location.origin);
+  return `${trimTrailingSlash(window.location.origin)}/api`;
 };
 
 export const API_BASE = resolveApiBase();

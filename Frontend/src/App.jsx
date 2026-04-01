@@ -3,16 +3,38 @@ import AppNavigator from "./navigation/AppNavigator";
 import { apiGet } from "./utils/api.js";
 
 function App() {
-  const [serverStatus, setServerStatus] = useState("PINGING UPLINK...");
+  const [serverStatus, setServerStatus] = useState({
+    label: "PINGING UPLINK...",
+    detail: "Checking backend health.",
+    tone: "amber",
+  });
 
   useEffect(() => {
-    // 🚀 Test Route: Proves frontend can talk to backend
     apiGet("/api/status")
       .then((res) => {
-        setServerStatus(res?.status === "Active" ? "UPLINK SECURE" : "UPLINK UNSTABLE");
+        setServerStatus(
+          res?.status === "ok"
+            ? {
+                label: "UPLINK SECURE",
+                detail: "Backend is responding normally.",
+                tone: "emerald",
+              }
+            : {
+                label: "UPLINK UNSTABLE",
+                detail: "Backend responded with an unexpected status.",
+                tone: "amber",
+              },
+        );
       })
-      .catch(() => {
-        setServerStatus("UPLINK OFFLINE");
+      .catch((error) => {
+        const wakingUp = error.message?.toLowerCase().includes("waking up");
+        setServerStatus({
+          label: wakingUp ? "SERVER WAKING" : "UPLINK OFFLINE",
+          detail: wakingUp
+            ? "Server is waking up, please wait..."
+            : "Backend is unreachable right now.",
+          tone: wakingUp ? "amber" : "red",
+        });
       });
   }, []);
 
@@ -24,16 +46,21 @@ function App() {
       <div className="pointer-events-none absolute bottom-4 right-4 z-[9999] flex items-center gap-3 rounded-sm border border-white/10 bg-black/80 p-3 backdrop-blur-md">
         <div 
           className={`h-2 w-2 animate-pulse rounded-full ${
-            serverStatus === "UPLINK SECURE" ? "bg-emerald-500" : 
-            serverStatus === "PINGING UPLINK..." ? "bg-amber-500" : "bg-red-500"
+            serverStatus.tone === "emerald" ? "bg-emerald-500" :
+            serverStatus.tone === "amber" ? "bg-amber-500" : "bg-red-500"
           }`} 
         />
-        <span className="font-mono text-[9px] font-black uppercase tracking-widest text-white/50">
-          Render API: <span className={
-            serverStatus === "UPLINK SECURE" ? "text-emerald-500" : 
-            serverStatus === "PINGING UPLINK..." ? "text-amber-500" : "text-red-500"
-          }>{serverStatus}</span>
-        </span>
+        <div className="font-mono text-[9px] font-black uppercase tracking-widest text-white/50">
+          <div>
+            Render API: <span className={
+              serverStatus.tone === "emerald" ? "text-emerald-500" :
+              serverStatus.tone === "amber" ? "text-amber-500" : "text-red-500"
+            }>{serverStatus.label}</span>
+          </div>
+          <div className="mt-1 text-[8px] tracking-[0.14em] text-white/35">
+            {serverStatus.detail}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -27,14 +27,63 @@ import communityRoutes from "./src/routes/communityRoutes.js";
 import researchRoutes from "./src/routes/researchRoutes.js";
 
 const app = express();
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  ...(process.env.CORS_ORIGINS || "")
-    .split(",")
-    .map((origin) => origin.trim()),
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-].filter(Boolean);
+const PORT = Number(process.env.PORT) || 5000;
+const DB_RETRY_DELAYS_MS = [2000, 5000, 10000, 20000];
+const allowedOrigins = Array.from(
+  new Set(
+    [
+      process.env.CLIENT_URL,
+      process.env.FRONTEND_URL,
+      "https://antariksh-ns.onrender.com",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      ...(process.env.CORS_ORIGINS || "")
+        .split(",")
+        .map((origin) => origin.trim()),
+    ].filter(Boolean),
+  ),
+);
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const logEvent = (scope, details = {}) => {
+  console.log(
+    JSON.stringify({
+      scope,
+      timestamp: new Date().toISOString(),
+      ...details,
+    }),
+  );
+};
+
+const getStatusPayload = () => ({
+  success: true,
+  status: "ok",
+  service: "antariksh-api",
+  uptimeSeconds: Math.round(process.uptime()),
+  database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+});
+const isAllowedOrigin = (origin) => !origin || allowedOrigins.includes(origin);
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (isAllowedOrigin(origin)) {
+      return callback(null, true);
+    }
+
+    console.warn(
+      JSON.stringify({
+        scope: "cors_blocked",
+        origin,
+      }),
+    );
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
 
 // --- 1. SECURITY & CORE MIDDLEWARES ---
 app.use(
@@ -43,55 +92,87 @@ app.use(
   })
 );
 app.use(morgan("dev"));
+app.use((req, res, next) => {
+  logEvent("api_request", {
+    method: req.method,
+    path: req.originalUrl,
+    origin: req.headers.origin || null,
+  });
+
+  const requestOrigin = req.headers.origin;
+  if (isAllowedOrigin(requestOrigin) && requestOrigin) {
+    res.header("Access-Control-Allow-Origin", requestOrigin);
+    res.header("Vary", "Origin");
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  }
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // --- 2. CORS CONFIG ---
 app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error(`CORS blocked for origin: ${origin}`));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  cors(corsOptions)
 );
+app.options("*", cors(corsOptions));
 
 // --- 3. DATABASE CONNECTION ---
+const cleanupOrphanWatchlistRecords = async () => {
+  const Watchlist = mongoose.model("Watchlist");
+  const result = await Watchlist.deleteMany({
+    $or: [{ user: { $exists: false } }, { user: null }],
+  });
+
+  logEvent("db_cleanup", { deletedCount: result.deletedCount || 0 });
+};
+
 const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
-      family: 4,
-      serverSelectionTimeoutMS: 5000,
-    });
-
-    console.log(`📡 DB Connected: ${conn.connection.host}`);
-
-    // 🧹 CLEANUP: Remove orphan watchlist items
-    const Watchlist = mongoose.model("Watchlist");
-
-    const result = await Watchlist.deleteMany({
-      $or: [
-        { user: { $exists: false } },
-        { user: null },
-      ],
-    });
-
-    if (result.deletedCount > 0) {
-      console.log(`🧹 Removed ${result.deletedCount} orphan records`);
-    } else {
-      console.log("✅ No orphan records found");
-    }
-  } catch (error) {
-    console.error(`❌ DB Connection Failed: ${error.message}`);
-    process.exit(1);
+  if (!process.env.MONGO_URI) {
+    throw new Error("MONGO_URI is not configured.");
   }
+
+  let lastError;
+
+  for (let attempt = 0; attempt <= DB_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      const conn = await mongoose.connect(process.env.MONGO_URI, {
+        family: 4,
+        serverSelectionTimeoutMS: 5000,
+      });
+
+      logEvent("db_connected", { host: conn.connection.host });
+      await cleanupOrphanWatchlistRecords();
+      return conn;
+    } catch (error) {
+      lastError = error;
+      const nextDelay = DB_RETRY_DELAYS_MS[attempt];
+
+      console.error(
+        JSON.stringify({
+          scope: "db_connection_error",
+          attempt: attempt + 1,
+          message: error.message,
+          nextDelayMs: nextDelay || null,
+        }),
+      );
+
+      if (!nextDelay) {
+        break;
+      }
+
+      await sleep(nextDelay);
+    }
+  }
+
+  throw lastError;
 };
 
 // 🌌 INITIAL SYNC FUNCTION (Robust Data Registry)
@@ -126,22 +207,11 @@ app.get("/", (req, res) => {
 });
 
 app.get("/status", (req, res) => {
-  res.status(200).json({
-    success: true,
-    status: "Active",
-    message: "Backend is running 🚀",
-    timestamp: new Date().toISOString(),
-  });
+  res.status(200).json(getStatusPayload());
 });
 
-// Duplicating under /api for frontend utility compatibility
 app.get("/api/status", (req, res) => {
-  res.status(200).json({
-    success: true,
-    status: "Active",
-    message: "Backend is running 🚀",
-    timestamp: new Date().toISOString(),
-  });
+  res.status(200).json(getStatusPayload());
 });
 
 app.get("/api/test", (req, res) => {
@@ -170,22 +240,7 @@ app.use((req, res) => {
 // --- 7. GLOBAL ERROR HANDLER ---
 app.use(errorMiddleware);
 
-// --- 8. SERVER BINDING ---
-const PORT = process.env.PORT || 5000;
 const httpServer = createServer(app);
-
-// Start listening immediately to pass Render's port scan timeout
-httpServer.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server bound and listening on port ${PORT}`);
-});
-
-// --- 9. DATABASE & SYNC (Run async so we don't block the port binding) ---
-connectDB().then(() => {
-  console.log("🚀 [SYSTEM_UPLINK]: Primary Database Confirmed. Initializing Data Registry...");
-  runInitialSync();
-}).catch(err => {
-  console.error("DB Boot Failed:", err);
-});
 
 // --- 10. CRON JOB (NASA DATA SYNC) ---
 cron.schedule("0 */6 * * *", async () => {
@@ -206,3 +261,42 @@ cron.schedule("0 */6 * * *", async () => {
     console.error("❌ Cron failed:", error.message);
   }
 });
+
+mongoose.connection.on("connected", () => {
+  logEvent("db_state", { state: "connected" });
+});
+
+mongoose.connection.on("disconnected", () => {
+  console.warn(JSON.stringify({ scope: "db_state", state: "disconnected" }));
+});
+
+mongoose.connection.on("error", (error) => {
+  console.error(
+    JSON.stringify({
+      scope: "db_state",
+      state: "error",
+      message: error.message,
+    }),
+  );
+});
+
+const startServer = async () => {
+  try {
+    await connectDB();
+    await runInitialSync();
+
+    httpServer.listen(PORT, "0.0.0.0", () => {
+      logEvent("server_started", { port: PORT });
+    });
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        scope: "server_boot_failed",
+        message: error.message,
+      }),
+    );
+    process.exit(1);
+  }
+};
+
+startServer();
