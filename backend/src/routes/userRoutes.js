@@ -9,6 +9,12 @@ import {
   uploadAvatar,
   uploadPaper,
   resendOTP,
+  getCaptchaChallenge,
+  forgotPassword,
+  verifyForgotPasswordOtp,
+  resetPassword,
+  getSettings,
+  updateSettings,
 } from "../controllers/userController.js";
 import { protect as isAuthenticated } from "../middlewares/auth.js";
 import upload from "../config/cloudinary.js"; // Standard Cloudinary/Multer config
@@ -28,8 +34,20 @@ router.post("/verify-otp", verifyOTP);
 // @route   POST /api/auth/login
 router.post("/login", loginUser);
 
+// @route   POST /api/auth/captcha
+router.post("/captcha", getCaptchaChallenge);
+
 // @route   POST /api/auth/resend-otp
 router.post("/resend-otp", resendOTP);
+
+// @route   POST /api/auth/forgot-password
+router.post("/forgot-password", forgotPassword);
+
+// @route   POST /api/auth/forgot-password/verify-otp
+router.post("/forgot-password/verify-otp", verifyForgotPasswordOtp);
+
+// @route   POST /api/auth/reset-password
+router.post("/reset-password", resetPassword);
 
 // @route   GET /api/auth/logout
 router.get("/logout", logout);
@@ -46,6 +64,11 @@ router
   .route("/profile")
   .get(isAuthenticated, getMyProfile)
   .put(isAuthenticated, updateProfile);
+
+router
+  .route("/settings")
+  .get(isAuthenticated, getSettings)
+  .put(isAuthenticated, updateSettings);
 
 /**
  * @desc    Avatar Synchronization

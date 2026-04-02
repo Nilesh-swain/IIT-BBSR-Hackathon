@@ -20,6 +20,31 @@ const userSchema = new mongoose.Schema(
     address: { type: String, default: "Odisha, India" },
     role: { type: String, default: "Architect" },
     isVerified: { type: Boolean, default: false },
+    notificationPreferences: {
+      emailUpdates: { type: Boolean, default: true },
+      webNotifications: { type: Boolean, default: true },
+      desktopNotifications: { type: Boolean, default: true },
+      smsUpdates: { type: Boolean, default: false },
+      soundEffects: { type: Boolean, default: false },
+    },
+    security: {
+      twoFactor: {
+        enabled: { type: Boolean, default: false },
+        method: {
+          type: String,
+          enum: ["otp", "trusted_device"],
+          default: "otp",
+        },
+      },
+      trustedDevices: [
+        {
+          tokenHash: { type: String, required: true },
+          label: { type: String, default: "Trusted device" },
+          lastUsedAt: { type: Date, default: Date.now },
+          expiresAt: { type: Date, required: true },
+        },
+      ],
+    },
     papers: [
       {
         title: String,

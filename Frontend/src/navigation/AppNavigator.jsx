@@ -157,6 +157,7 @@ const LandingPage = lazy(() => import("../features/LangingPage/LandingPage.jsx")
 const SignupPage = lazy(() => import("../features/auth/SignupPage.jsx"));
 const LoginPage = lazy(() => import("../features/auth/LoginPage.jsx"));
 const OtpVerification = lazy(() => import("../features/auth/OtpVerification.jsx"));
+const ForgotPasswordPage = lazy(() => import("../features/auth/ForgotPasswordPage.jsx"));
 const ThreeDView = lazy(() => import("../features/3D/ThreeDView.jsx"));
 const ImpactSimulator = lazy(() => import("../features/ImpactSimulator/ImpactSimulator.jsx"));
 const RiskMonitor = lazy(() => import("../features/RiskMonitor/RiskMonitor.jsx"));
@@ -238,6 +239,7 @@ export default function AppNavigator() {
             <Route path="/auth/signup" element={<SignupPage />} />
             <Route path="/auth/login" element={<LoginPage />} />
             <Route path="/auth/verify" element={<OtpVerificationHandler />} />
+            <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
 
             {MISSION_ROUTES.map((route) => (
               <Route
@@ -267,7 +269,7 @@ function OtpVerificationHandler() {
   const { state } = useLocation();
   return (
     <OtpVerification
-      email={state?.email || "OPERATOR@ASTRAEA.SOL"}
+      email={state?.email || "operator@example.com"}
       onVerified={() => setTimeout(() => navigate("/cosmos", { replace: true }), 1000)}
     />
   );

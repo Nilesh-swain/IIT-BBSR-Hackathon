@@ -2,8 +2,15 @@ import User from "../models/userModel.js";
 import { sendToken } from "../utils/jwtToken.js";
 import {
   authenticateUser,
+  clearTrustedDeviceCookie,
+  completePasswordReset,
   createRegistrationOtp,
+  getUserSettings,
+  issueCaptchaChallenge,
+  requestPasswordReset,
   resendRegistrationOtp,
+  updateUserSettings,
+  verifyPasswordResetOtp,
   verifyRegistrationOtp,
 } from "../services/authService.js";
 
@@ -150,7 +157,10 @@ export const verifyOTP = async (req, res, next) => {
 
 export const loginUser = async (req, res, next) => {
   try {
-    const result = await authenticateUser(req.body);
+    const result = await authenticateUser({
+      ...req.body,
+      trustedDeviceToken: req.cookies?.trusted_device,
+    });
     if (!result.user) {
       return res.status(result.status).json(result.body);
     }
@@ -171,12 +181,83 @@ export const logout = (req, res) => {
       secure: isProduction,
       sameSite: isProduction ? "None" : "Lax",
     })
+    .cookie("trusted_device", null, {
+      expires: new Date(Date.now()),
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "None" : "Lax",
+    })
     .json({ success: true, message: "Session Terminated." });
 };
 
 export const resendOTP = async (req, res, next) => {
   try {
     const result = await resendRegistrationOtp(req.body);
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getCaptchaChallenge = async (req, res, next) => {
+  try {
+    const result = await issueCaptchaChallenge(req.body || {});
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const result = await requestPasswordReset(req.body);
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const verifyForgotPasswordOtp = async (req, res, next) => {
+  try {
+    const result = await verifyPasswordResetOtp(req.body);
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPassword = async (req, res, next) => {
+  try {
+    const result = await completePasswordReset(req.body);
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSettings = async (req, res, next) => {
+  try {
+    const currentUserId = req.user._id || req.user.id;
+    const result = await getUserSettings(currentUserId);
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateSettings = async (req, res, next) => {
+  try {
+    const currentUserId = req.user._id || req.user.id;
+    const result = await updateUserSettings(currentUserId, req.body);
+
+    if (
+      req.body?.security?.twoFactor?.enabled === false ||
+      result.body?.data?.security?.twoFactor?.enabled === false
+    ) {
+      const trustedCookie = clearTrustedDeviceCookie();
+      res.cookie(trustedCookie.name, trustedCookie.value, trustedCookie.options);
+    }
+
     return res.status(result.status).json(result.body);
   } catch (error) {
     next(error);

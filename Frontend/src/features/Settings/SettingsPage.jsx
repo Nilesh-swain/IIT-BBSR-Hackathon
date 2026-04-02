@@ -1,37 +1,123 @@
 import React, { useEffect, useState } from "react";
 import {
   Bell,
-  LogOut,
   Mail,
   Shield,
-  SlidersHorizontal,
   User,
   Power,
-  Activity,
   Cpu,
-  Lock
+  Lock,
+  Smartphone,
+  Monitor,
+  Volume2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { apiGet } from "../../utils/api.js";
+import { apiGet, apiPut } from "../../utils/api.js";
 import { useNotifications } from "../../contexts/NotificationContext.jsx";
 
 const STORAGE_KEY = "antariksh_local_settings_v1";
-
-const SettingsPage = () => {
-  const navigate = useNavigate();
-  const { addNotification } = useNotifications();
-  const [profile, setProfile] = useState(null);
-  const [settings, setSettings] = useState({
+const defaultSettings = {
+  notificationPreferences: {
     desktopNotifications: true,
     emailUpdates: true,
     webNotifications: true,
     smsUpdates: false,
     soundEffects: false,
-  });
+  },
+  security: {
+    twoFactor: {
+      enabled: false,
+      method: "otp",
+    },
+  },
+};
 
-  const persistSettings = (next) => {
-    setSettings(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+const SettingsPage = () => {
+  const navigate = useNavigate();
+  const { addNotification } = useNotifications();
+  const [profile, setProfile] = useState(null);
+  const [settings, setSettings] = useState(defaultSettings);
+  const [savingKey, setSavingKey] = useState("");
+
+  const syncLocalCache = (nextSettings) => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(nextSettings.notificationPreferences),
+    );
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const localPreferences = stored ? JSON.parse(stored) : {};
+        const [profileRes, settingsRes] = await Promise.all([
+          apiGet("/api/auth/profile"),
+          apiGet("/api/auth/settings"),
+        ]);
+
+        if (profileRes?.success) {
+          setProfile(profileRes.data);
+        }
+
+        if (settingsRes?.success) {
+          const remote = settingsRes.data || {};
+          const merged = {
+            notificationPreferences: {
+              ...defaultSettings.notificationPreferences,
+              ...localPreferences,
+              ...(remote.notificationPreferences || {}),
+            },
+            security: {
+              twoFactor: {
+                ...defaultSettings.security.twoFactor,
+                ...(remote.security?.twoFactor || {}),
+              },
+            },
+          };
+          setSettings(merged);
+          syncLocalCache(merged);
+        }
+      } catch (error) {
+        console.error("Settings load failed:", error);
+      }
+    };
+
+    load();
+  }, []);
+
+  const persistSettings = async (nextSettings, successMessage, savingId) => {
+    setSavingKey(savingId);
+    try {
+      const response = await apiPut("/api/auth/settings", nextSettings);
+      const merged = {
+        notificationPreferences: {
+          ...defaultSettings.notificationPreferences,
+          ...(response.data?.notificationPreferences || {}),
+        },
+        security: {
+          twoFactor: {
+            ...defaultSettings.security.twoFactor,
+            ...(response.data?.security?.twoFactor || {}),
+          },
+        },
+      };
+      setSettings(merged);
+      syncLocalCache(merged);
+      addNotification({
+        title: "SETTINGS_SYNCED",
+        message: successMessage,
+        type: "INFO",
+      });
+    } catch (error) {
+      addNotification({
+        title: "SETTINGS_SYNC_FAILED",
+        message: error.message || "Unable to save settings.",
+        type: "WARN",
+      });
+    } finally {
+      setSavingKey("");
+    }
   };
 
   const playConfirmTone = () => {
@@ -49,33 +135,16 @@ const SettingsPage = () => {
       gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
       osc.start(now);
       osc.stop(now + 0.2);
-    } catch (e) {
-      /* no-op: audio not critical */
+    } catch (error) {
+      console.error("Audio preview unavailable:", error.message);
     }
   };
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          setSettings((current) => ({ ...current, ...JSON.parse(stored) }));
-        }
+  const handleNotificationToggle = async (key) => {
+    const current = settings.notificationPreferences[key];
+    const nextValue = !current;
 
-        const res = await apiGet("/api/auth/profile");
-        if (res?.success) {
-          setProfile(res.data);
-        }
-      } catch (error) {
-        console.error("Settings load failed:", error);
-      }
-    };
-    load();
-  }, []);
-
-  const handleDesktopToggle = async () => {
-    const nextValue = !settings.desktopNotifications;
-    if (nextValue && "Notification" in window) {
+    if (key === "desktopNotifications" && nextValue && "Notification" in window) {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
         addNotification({
@@ -83,62 +152,32 @@ const SettingsPage = () => {
           message: "Permission denied. Enable browser notifications to arm visual alerts.",
           type: "WARN",
         });
-        persistSettings({ ...settings, desktopNotifications: false });
         return;
       }
-      addNotification({
-        title: "DESKTOP_UPLINK_READY",
-        message: "Visual mission-critical alerts armed.",
-        type: "INFO",
-      });
     }
-    persistSettings({ ...settings, desktopNotifications: nextValue });
-  };
 
-  const handleEmailToggle = () => {
-    if (!profile?.email) {
+    if (key === "emailUpdates" && !profile?.email) {
       addNotification({
         title: "NO_EMAIL_ON_FILE",
-        message: "Add an email in Profile before enabling Neural Mail.",
+        message: "Add an email in Profile before enabling mail notifications.",
         type: "WARN",
       });
-      persistSettings({ ...settings, emailUpdates: false });
       return;
     }
 
-    const nextValue = !settings.emailUpdates;
-    persistSettings({ ...settings, emailUpdates: nextValue });
-    addNotification({
-      title: nextValue ? "NEURAL_MAIL_ARMED" : "NEURAL_MAIL_STANDBY",
-      message: nextValue ? "Encrypted archive pushes enabled." : "Mail uplink paused.",
-      type: "INFO",
-    });
-  };
+    const nextSettings = {
+      ...settings,
+      notificationPreferences: {
+        ...settings.notificationPreferences,
+        [key]: nextValue,
+      },
+    };
 
-  const handleSoundToggle = () => {
-    const nextValue = !settings.soundEffects;
-    persistSettings({ ...settings, soundEffects: nextValue });
-    if (nextValue) playConfirmTone();
-  };
+    if (key === "soundEffects" && nextValue) {
+      playConfirmTone();
+    }
 
-  const handleWebToggle = () => {
-    const nextValue = !settings.webNotifications;
-    persistSettings({ ...settings, webNotifications: nextValue });
-    addNotification({
-      title: nextValue ? "IN_APP_ALERTS_ON" : "IN_APP_ALERTS_OFF",
-      message: nextValue ? "On-site notifications armed." : "On-site notifications muted.",
-      type: "INFO",
-    });
-  };
-
-  const handleSmsToggle = () => {
-    const nextValue = !settings.smsUpdates;
-    persistSettings({ ...settings, smsUpdates: nextValue });
-    addNotification({
-      title: nextValue ? "SMS_CHANNEL_ARMED" : "SMS_CHANNEL_MUTED",
-      message: nextValue ? "SMS alerts will be sent when available." : "SMS alerts disabled.",
-      type: "INFO",
-    });
+    await persistSettings(nextSettings, "Notification settings saved.", key);
   };
 
   const handleLogout = async () => {
@@ -155,102 +194,129 @@ const SettingsPage = () => {
     }
   };
 
+  const notificationItems = [
+    {
+      key: "desktopNotifications",
+      title: "Desktop Uplink",
+      description: "Visual mission-critical alerts in the browser.",
+      icon: <Monitor size={14} />,
+    },
+    {
+      key: "webNotifications",
+      title: "On-site Alerts",
+      description: "Bell notifications inside the application.",
+      icon: <Bell size={14} />,
+    },
+    {
+      key: "emailUpdates",
+      title: "Mail Notifications",
+      description: profile?.email
+        ? "Receive vault and research updates by email."
+        : "Add an email in Profile to enable mail notifications.",
+      icon: <Mail size={14} />,
+      disabled: !profile?.email,
+    },
+    {
+      key: "smsUpdates",
+      title: "SMS Relay",
+      description: "Reserved for future critical text alerts.",
+      icon: <Smartphone size={14} />,
+    },
+    {
+      key: "soundEffects",
+      title: "Audio Feedback",
+      description: "Play a short confirmation tone inside the console.",
+      icon: <Volume2 size={14} />,
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#050505] bg-[linear-gradient(rgba(255,94,0,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,94,0,0.02)_1px,transparent_1px)] bg-[size:40px_40px] px-8 py-10 text-white selection:bg-[#FF5E00] selection:text-black">
+    <div className="min-h-screen bg-[#050505] bg-[linear-gradient(rgba(255,94,0,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,94,0,0.02)_1px,transparent_1px)] bg-[size:40px_40px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 text-white selection:bg-[#FF5E00] selection:text-black">
       <div className="mx-auto max-w-6xl space-y-8">
-        
-        {/* --- HEADER BLOCK --- */}
-        <header className="relative border-l-4 border-[#FF5E00] bg-[#0A0A0A] p-10 shadow-2xl">
+        <header className="relative border-l-4 border-[#FF5E00] bg-[#0A0A0A] p-6 shadow-2xl sm:p-8 lg:p-10">
           <div className="absolute top-4 right-6 flex gap-2">
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-1 w-4 bg-[#FF5E00]/20" />
             ))}
           </div>
-          
+
           <div className="flex items-center gap-3 text-[#FF5E00]">
             <Cpu size={14} />
             <span className="text-[10px] font-bold uppercase tracking-[0.5em]">
               Antariksh_Core_Sys // Terminal_01
             </span>
           </div>
-          
-          <h1 className="mt-4 text-6xl font-black uppercase italic tracking-tighter">
+
+          <h1 className="mt-4 text-4xl font-black uppercase italic tracking-tighter sm:text-5xl lg:text-6xl">
             Control <span className="text-[#FF5E00] drop-shadow-[0_0_15px_#FF5E00]">Panel</span>
           </h1>
           <p className="mt-4 font-mono text-xs text-white/40 uppercase tracking-widest">
-            Hardware Status: <span className="text-green-500">Nominal</span> // Uplink: Established
+            Account-level notification control and responsive security status.
           </p>
         </header>
 
         <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
-          
-          {/* --- NOTIFICATIONS SECTION --- */}
-          <section className="relative border border-white/10 bg-[#080808]/90 p-8">
+          <section className="relative border border-white/10 bg-[#080808]/90 p-5 sm:p-6 lg:p-8">
             <div className="absolute -top-[1px] -left-[1px] h-4 w-4 border-t-2 border-l-2 border-[#FF5E00]" />
-            
+
             <div className="mb-8 flex items-center justify-between border-b border-white/5 pb-6">
               <div className="flex items-center gap-3">
                 <Bell size={18} className="text-[#FF5E00]" />
-                <h2 className="text-[14px] font-black uppercase tracking-[0.3em]">Neural_Comms</h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 animate-pulse rounded-full bg-[#FF5E00]" />
-                <span className="font-mono text-[10px] text-white/30">SYNC_ON</span>
+                <h2 className="text-[14px] font-black uppercase tracking-[0.3em]">Notifications</h2>
               </div>
             </div>
 
             <div className="space-y-4">
-              <ToggleRow
-                title="Desktop Uplink"
-                description="Visual mission-critical alerts in terminal."
-                enabled={settings.desktopNotifications}
-                onToggle={handleDesktopToggle}
-              />
-              <ToggleRow
-                title="On-site Alerts"
-                description="Bell notifications inside the console."
-                enabled={settings.webNotifications}
-                onToggle={handleWebToggle}
-              />
-              <ToggleRow
-                title="Neural Mail"
-                description={profile?.email ? "Push encrypted data to primary archives." : "Add an email in Profile to enable mail uplink."}
-                enabled={settings.emailUpdates}
-                onToggle={handleEmailToggle}
-                disabled={!profile?.email}
-              />
-              <ToggleRow
-                title="SMS Relay"
-                description="Fallback text alerts for critical events."
-                enabled={settings.smsUpdates}
-                onToggle={handleSmsToggle}
-              />
-              <ToggleRow
-                title="Audio Feedback"
-                description="Sonic confirmation for terminal commands."
-                enabled={settings.soundEffects}
-                onToggle={handleSoundToggle}
-              />
+              {notificationItems.map((item) => (
+                <ToggleRow
+                  key={item.key}
+                  title={item.title}
+                  description={item.description}
+                  icon={item.icon}
+                  enabled={settings.notificationPreferences[item.key]}
+                  onToggle={() => handleNotificationToggle(item.key)}
+                  disabled={Boolean(item.disabled || savingKey)}
+                  busy={savingKey === item.key}
+                />
+              ))}
             </div>
           </section>
 
-          {/* --- PROFILE / SECURITY SECTION --- */}
-          <section className="relative flex flex-col border border-white/10 bg-[#080808]/90 p-8">
-             <div className="absolute -top-[1px] -right-[1px] h-4 w-4 border-t-2 border-r-2 border-[#FF5E00]" />
+          <section className="relative flex flex-col gap-6 border border-white/10 bg-[#080808]/90 p-5 sm:p-6 lg:p-8">
+            <div className="absolute -top-[1px] -right-[1px] h-4 w-4 border-t-2 border-r-2 border-[#FF5E00]" />
 
-            <div className="mb-8 flex items-center gap-3 border-b border-white/5 pb-6">
-              <Lock size={18} className="text-[#FF5E00]" />
-              <h2 className="text-[14px] font-black uppercase tracking-[0.3em]">Operator_ID</h2>
+            <div className="border-b border-white/5 pb-6">
+              <div className="mb-3 flex items-center gap-3">
+                <Lock size={18} className="text-[#FF5E00]" />
+                <h2 className="text-[14px] font-black uppercase tracking-[0.3em]">Security</h2>
+              </div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/35">
+                Signup uses captcha plus email OTP. Login uses password plus captcha verification.
+              </p>
             </div>
 
-            <div className="space-y-4 flex-grow">
+            <div className="grid gap-3">
+              <MethodCard
+                title="Signup Protection"
+                description="Every new account must solve captcha first and then verify the email OTP."
+                active
+                disabled
+              />
+              <MethodCard
+                title="Login Protection"
+                description="Every login must solve captcha before access is granted."
+                active
+                disabled
+              />
+            </div>
+
+            <div className="space-y-4 border-t border-white/5 pt-6">
               <InfoRow icon={<User size={14} />} label="Operator" value={profile?.username || "---"} />
               <InfoRow icon={<Mail size={14} />} label="Uplink_Email" value={profile?.email || "---"} />
               <InfoRow icon={<Shield size={14} />} label="Clearance" value={profile?.role || "LEVEL_0"} />
             </div>
 
-            {/* UPGRADED LOGOUT BUTTON */}
-            <div className="mt-12 pt-6 border-t border-white/5">
+            <div className="mt-auto border-t border-white/5 pt-6">
               <button
                 onClick={handleLogout}
                 className="group relative w-full overflow-hidden border border-rose-500/40 bg-rose-500/5 py-5 transition-all hover:bg-rose-600 active:scale-[0.98]"
@@ -259,19 +325,13 @@ const SettingsPage = () => {
                   <Power size={16} />
                   Terminate Session
                 </div>
-                {/* Visual "Scanner" effect on hover */}
                 <div className="absolute inset-0 h-full w-full bg-gradient-to-b from-transparent via-white/10 to-transparent -translate-y-full group-hover:animate-[scan_1.5s_infinite]" />
               </button>
-              <p className="mt-4 text-center font-mono text-[9px] uppercase tracking-[0.2em] text-white/20">
-                // System_Log: ID_${Math.random().toString(36).substr(2, 9).toUpperCase()}
-              </p>
             </div>
           </section>
-
         </div>
       </div>
-      
-      {/* Tailwind custom scan animation used in the button */}
+
       <style jsx>{`
         @keyframes scan {
           0% { transform: translateY(-100%); }
@@ -282,23 +342,33 @@ const SettingsPage = () => {
   );
 };
 
-const ToggleRow = ({ title, description, enabled, onToggle, disabled = false }) => (
-  <div className="group flex items-center justify-between border border-white/5 bg-white/[0.02] p-5 transition-all hover:border-[#FF5E00]/40">
+const ToggleRow = ({
+  title,
+  description,
+  enabled,
+  onToggle,
+  disabled = false,
+  icon,
+  busy = false,
+}) => (
+  <div className="group flex items-center justify-between gap-4 border border-white/5 bg-white/[0.02] p-4 sm:p-5 transition-all hover:border-[#FF5E00]/40">
     <div className="space-y-1">
       <div className="flex items-center gap-2">
-        <div className={`h-1.5 w-1.5 ${enabled ? 'bg-[#FF5E00]' : 'bg-white/10'}`} />
+        <span className="text-[#FF5E00]/70">{icon}</span>
         <p className="text-[12px] font-black uppercase tracking-widest text-white/90">
           {title}
         </p>
       </div>
-      <p className="font-mono text-[10px] text-white/40 uppercase tracking-tighter italic">{description}</p>
+      <p className="font-mono text-[10px] text-white/40 uppercase tracking-tighter italic">
+        {busy ? "Saving..." : description}
+      </p>
     </div>
     <button
       onClick={onToggle}
       disabled={disabled}
       className={`relative h-5 w-10 border transition-all ${
         enabled ? "border-[#FF5E00] bg-[#FF5E00]/20" : "border-white/10 bg-transparent"
-      } ${disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
+      } ${disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"}`}
     >
       <div
         className={`absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 transition-all duration-300 ${
@@ -309,10 +379,30 @@ const ToggleRow = ({ title, description, enabled, onToggle, disabled = false }) 
   </div>
 );
 
+const MethodCard = ({ title, description, active, disabled, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    className={`border p-4 text-left transition-all ${
+      active
+        ? "border-[#FF5E00] bg-[#FF5E00]/10"
+        : "border-white/10 bg-white/[0.02] hover:border-white/20"
+    } ${disabled ? "cursor-not-allowed opacity-45" : ""}`}
+  >
+    <div className="mb-2 text-[11px] font-black uppercase tracking-[0.25em] text-white">
+      {title}
+    </div>
+    <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-white/40">
+      {description}
+    </p>
+  </button>
+);
+
 const InfoRow = ({ icon, label, value }) => (
-  <div className="group flex items-center justify-between border-b border-white/5 bg-transparent py-4 px-2 transition-all hover:bg-white/[0.02]">
+  <div className="group flex items-center justify-between gap-4 border-b border-white/5 bg-transparent px-2 py-4 transition-all hover:bg-white/[0.02]">
     <div className="flex items-center gap-4">
-      <span className="text-[#FF5E00]/60 group-hover:text-[#FF5E00] transition-colors">{icon}</span>
+      <span className="text-[#FF5E00]/60 transition-colors group-hover:text-[#FF5E00]">{icon}</span>
       <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/30">
         {label}
       </span>
@@ -322,4 +412,3 @@ const InfoRow = ({ icon, label, value }) => (
 );
 
 export default SettingsPage;
-

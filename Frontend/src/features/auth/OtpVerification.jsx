@@ -13,22 +13,21 @@ import {
   Fingerprint,
 } from "lucide-react";
 
-const OtpVerification = () => {
+const OtpVerification = (props) => {
   const [otp, setOtp] = useState(new Array(6).fill(""));
-  const [status, setStatus] = useState("idle"); // idle | processing | error | success
+  const [status, setStatus] = useState("idle");
   const [sysTime, setSysTime] = useState("");
+  const [message, setMessage] = useState("");
   const inputRefs = useRef([]);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Retrieve email from navigation state (passed from Signup) or use fallback
-  const email = location.state?.email || "OPERATOR_EXTERNAL@ASTRAEA.SOL";
+  const state = location.state || {};
+  const email = props.email || state.email || "operator@example.com";
 
   useEffect(() => {
-    // Auto-focus first input on mount
     if (inputRefs.current[0]) inputRefs.current[0].focus();
 
-    // Tactical Clock
     const timer = setInterval(() => {
       setSysTime(
         new Date().toLocaleTimeString("en-GB", { hour12: false }) + " UTC",
@@ -41,61 +40,56 @@ const OtpVerification = () => {
     const value = e.target.value;
     if (isNaN(value)) return;
 
-    const newOtp = [...otp];
-    newOtp[index] = value.substring(value.length - 1);
-    setOtp(newOtp);
+    const nextOtp = [...otp];
+    nextOtp[index] = value.substring(value.length - 1);
+    setOtp(nextOtp);
 
-    // Auto-move to next input
     if (value && index < 5) {
-      inputRefs.current[index + 1].focus();
+      inputRefs.current[index + 1]?.focus();
     }
   };
 
   const handleKeyDown = (e, index) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
-      inputRefs.current[index - 1].focus();
+      inputRefs.current[index - 1]?.focus();
     }
   };
 
   const initiateVerification = async (e) => {
-    if (e) e.preventDefault();
+    e.preventDefault();
+    const entry = otp.join("");
+    if (entry.length !== 6) return;
+
     setStatus("processing");
+    setMessage("");
 
     try {
-      const entry = otp.join("");
-      if (entry.length !== 6) return;
-
-      console.log("🌌 [AUTH_DEBUG]: Initializing Identity Verification for:", email);
       await apiPost("/api/auth/verify-otp", { email, otp: entry });
-
       setStatus("success");
-      // Backend sets JWT cookie, navigate to dashboard
-      setTimeout(() => navigate("/cosmos"), 1500);
+      setTimeout(() => navigate("/cosmos", { replace: true }), 1000);
     } catch (error) {
-      console.error("🛑 [AUTH_DEBUG]: Verification Failed:", error.message);
+      setMessage(error.message || "Verification failed.");
       setStatus("error");
       setOtp(new Array(6).fill(""));
       setTimeout(() => {
         setStatus("idle");
-        if (inputRefs.current[0]) inputRefs.current[0].focus();
-      }, 3000);
+        inputRefs.current[0]?.focus();
+      }, 2500);
     }
   };
 
   const handleResend = async () => {
     try {
-      console.log("🌌 [AUTH_DEBUG]: Dispatching New Access Payload Request for:", email);
+      setMessage("");
       await apiPost("/api/auth/resend-otp", { email });
-      alert("Astraea Payload Re-dispatched to: " + email);
+      setMessage("A fresh OTP has been sent to your email.");
     } catch (error) {
-      console.error("🛑 [AUTH_DEBUG]: Resend Failed:", error.message);
-      alert("Relay Failure: " + error.message);
+      setMessage(error.message || "Unable to resend OTP.");
     }
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#020305] text-slate-300 flex items-center justify-center p-6 font-sans antialiased selection:bg-orange-500/30">
-      {/* Background HUD Grid */}
+    <div className="min-h-screen w-full bg-[#020305] text-slate-300 flex items-center justify-center p-4 sm:p-6 font-sans antialiased selection:bg-orange-500/30">
       <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
         <div className="absolute inset-0 bg-[radial-gradient(#2d3748_1px,transparent_1px)] bg-[size:40px_40px]" />
       </div>
@@ -105,8 +99,7 @@ const OtpVerification = () => {
         animate={{ opacity: 1, y: 0 }}
         className="relative z-10 w-full max-w-5xl grid lg:grid-cols-12 bg-[#08090B] border border-white/5 shadow-2xl overflow-hidden rounded-sm"
       >
-        {/* Left: Tactical Info Section */}
-        <div className="hidden lg:flex lg:col-span-5 flex-col justify-between p-12 bg-[#0A0C10] border-r border-white/5">
+        <div className="hidden lg:flex lg:col-span-5 flex-col justify-between p-10 xl:p-12 bg-[#0A0C10] border-r border-white/5">
           <div className="space-y-10">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 bg-orange-600/10 border border-orange-600/30 flex items-center justify-center">
@@ -119,25 +112,17 @@ const OtpVerification = () => {
 
             <div className="space-y-4">
               <h3 className="text-3xl font-black text-white leading-tight uppercase tracking-tighter italic">
-                Identity <br />{" "}
+                Email <br />
                 <span className="text-orange-600">Verification.</span>
               </h3>
-              <p className="text-sm text-slate-500 leading-relaxed max-w-[260px]">
-                Enter the 6-digit synchronization key sent to your registered
-                communication channel.
+              <p className="text-sm text-slate-500 leading-relaxed max-w-[280px]">
+                Final signup step. Enter the 6-digit OTP sent to your registered email.
               </p>
             </div>
 
             <div className="space-y-3 pt-6 border-t border-white/5">
-              <TelemetryItem
-                label="Channel"
-                value={email.split("@")[0] + "@***.SOL"}
-              />
-              <TelemetryItem
-                label="Encryption"
-                value="AES-GCM"
-                color="text-emerald-500"
-              />
+              <TelemetryItem label="Channel" value={email} />
+              <TelemetryItem label="Mode" value="REGISTRATION OTP" color="text-emerald-500" />
               <TelemetryItem
                 label="Uplink"
                 value={status.toUpperCase()}
@@ -158,24 +143,22 @@ const OtpVerification = () => {
           </div>
         </div>
 
-        {/* Right: OTP Form Section */}
-        <div className="lg:col-span-7 p-8 lg:p-20 flex flex-col justify-center bg-[#08090B] relative">
-          <div className="max-w-sm w-full mx-auto space-y-10">
+        <div className="lg:col-span-7 p-6 sm:p-8 lg:p-16 xl:p-20 flex flex-col justify-center bg-[#08090B] relative">
+          <div className="max-w-md w-full mx-auto space-y-8 sm:space-y-10">
             <header>
               <div className="flex items-center gap-2 mb-4">
                 <Fingerprint size={14} className="text-orange-500" />
                 <span className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.3em]">
-                  Multi-Factor Authentication
+                  Signup Step 2 Of 2
                 </span>
               </div>
-              <h1 className="text-2xl font-black text-white uppercase italic tracking-tighter">
-                Enter_Sync_Key
+              <h1 className="text-2xl sm:text-3xl font-black text-white uppercase italic tracking-tighter">
+                Enter_OTP_Code
               </h1>
             </header>
 
             <form onSubmit={initiateVerification} className="space-y-8">
-              {/* PIN CLUSTER */}
-              <div className="flex justify-between gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
                 {otp.map((data, index) => (
                   <input
                     key={index}
@@ -186,7 +169,7 @@ const OtpVerification = () => {
                     onChange={(e) => handleChange(e, index)}
                     onKeyDown={(e) => handleKeyDown(e, index)}
                     disabled={status === "processing" || status === "success"}
-                    className={`w-10 h-14 md:w-12 md:h-16 bg-[#0C0E12] border-2 rounded-sm text-center text-xl font-black outline-none transition-all duration-300 ${
+                    className={`w-full h-14 sm:h-16 bg-[#0C0E12] border-2 rounded-sm text-center text-xl font-black outline-none transition-all duration-300 ${
                       status === "error"
                         ? "border-red-500 text-red-500 bg-red-500/5 shadow-[0_0_15px_rgba(239,68,68,0.1)]"
                         : status === "success"
@@ -212,10 +195,10 @@ const OtpVerification = () => {
                   {status === "processing" ? (
                     <Loader2 size={16} className="animate-spin" />
                   ) : status === "success" ? (
-                    "Uplink Confirmed"
+                    "Verification Complete"
                   ) : (
                     <>
-                      Establish Sync <ChevronRight size={16} />
+                      Verify Account <ChevronRight size={16} />
                     </>
                   )}
                 </button>
@@ -225,7 +208,7 @@ const OtpVerification = () => {
                   onClick={handleResend}
                   className="w-full py-2 flex items-center justify-center gap-2 text-[9px] font-black text-slate-600 hover:text-orange-500 transition-colors uppercase tracking-widest"
                 >
-                  <RefreshCcw size={12} /> Resend Access Payload
+                  <RefreshCcw size={12} /> Resend OTP
                 </button>
               </div>
             </form>
@@ -241,8 +224,8 @@ const OtpVerification = () => {
                     className="flex items-center gap-3 text-red-500"
                   >
                     <ShieldAlert size={14} />
-                    <p className="text-[8px] font-bold tracking-widest uppercase italic">
-                      Sync Failed: Invalid Protocol Key
+                    <p className="text-[8px] sm:text-[9px] font-bold tracking-widest uppercase italic">
+                      {message || "Verification failed"}
                     </p>
                   </motion.div>
                 ) : (
@@ -250,12 +233,19 @@ const OtpVerification = () => {
                     key="status-msg"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="flex items-center gap-3 opacity-40"
+                    className="flex flex-col gap-2 opacity-70"
                   >
-                    <Activity size={14} />
-                    <p className="text-[8px] font-bold tracking-widest uppercase">
-                      Secured by Astraea Mainframe
-                    </p>
+                    <div className="flex items-center gap-3 opacity-60">
+                      <Activity size={14} />
+                      <p className="text-[8px] font-bold tracking-widest uppercase">
+                        Secured by Astraea Mainframe
+                      </p>
+                    </div>
+                    {message ? (
+                      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-orange-500">
+                        {message}
+                      </p>
+                    ) : null}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -267,13 +257,11 @@ const OtpVerification = () => {
   );
 };
 
-// Helper Component
 const TelemetryItem = ({ label, value, color = "text-white" }) => (
-  <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest">
+  <div className="flex justify-between items-center gap-4 text-[10px] uppercase font-bold tracking-widest">
     <span className="text-slate-600">{label}</span>
-    <span className={color}>{value}</span>
+    <span className={`${color} truncate text-right`}>{value}</span>
   </div>
 );
 
 export default OtpVerification;
-

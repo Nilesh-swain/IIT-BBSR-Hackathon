@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import User from "../models/userModel.js";
 import Watchlist from "../models/Watchlist.js";
 import { sendVaultNotification } from "../services/emailService.js";
 
@@ -72,9 +73,15 @@ export const toggleWatchlist = async (req, res, next) => {
 
     // 5. Send Email (Non-blocking)
     if (req.user?.email) {
-      sendVaultNotification(req.user.email, resolvedName).catch(() =>
-        console.warn("Email service failed (non-blocking).")
-      );
+      const currentUser = await User.findById(userId)
+        .select("email notificationPreferences.emailUpdates")
+        .lean();
+
+      if (currentUser?.notificationPreferences?.emailUpdates) {
+        sendVaultNotification(req.user.email, resolvedName).catch(() =>
+          console.warn("Email service failed (non-blocking).")
+        );
+      }
     }
 
     return res.status(201).json({

@@ -94,6 +94,49 @@ export const sendEmail = async ({ email, subject, otp }) => {
   });
 };
 
+export const sendSecurityOtpEmail = async ({
+  email,
+  otp,
+  subject = "Antariksh Security Protocol",
+  headline = "Security Verification",
+  message = "Use the verification code below to continue.",
+}) => {
+  return sendMail({
+    to: email,
+    subject,
+    text: `${message} Your code is ${otp}. It expires in 10 minutes.`,
+    html: `
+      <div style="background-color:${BG_BLACK};padding:40px 20px;font-family:'Courier New',Courier,monospace;color:#FFFFFF;text-align:center;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;border:1px solid ${PRIMARY_ORANGE};background:#000000;box-shadow:0 0 20px rgba(255,94,0,0.2);">
+          <tr>
+            <td style="padding:30px;text-align:left;">
+              <div style="color:${PRIMARY_ORANGE};font-size:10px;font-weight:bold;letter-spacing:3px;margin-bottom:20px;text-transform:uppercase;">
+                Secure_Auth_Channel
+              </div>
+              <h1 style="font-size:26px;font-weight:900;letter-spacing:-1px;text-transform:uppercase;margin:0 0 18px 0;font-style:italic;">
+                ${headline}
+              </h1>
+              <p style="font-size:13px;color:${TEXT_GRAY};line-height:1.6;text-transform:uppercase;letter-spacing:1px;margin:0 0 28px 0;">
+                ${message}
+              </p>
+              <div style="margin:0 0 28px 0;padding:26px;border:1px dashed ${PRIMARY_ORANGE};background:rgba(255,94,0,0.05);text-align:center;">
+                <div style="font-size:10px;color:${PRIMARY_ORANGE};margin-bottom:10px;letter-spacing:2px;">[ SECURITY_CODE ]</div>
+                <div style="font-size:42px;font-weight:bold;color:#FFFFFF;letter-spacing:12px;text-shadow:0 0 10px ${PRIMARY_ORANGE};">
+                  ${otp}
+                </div>
+              </div>
+              <p style="font-size:11px;color:${PRIMARY_ORANGE};font-weight:bold;text-transform:uppercase;letter-spacing:2px;margin:0;">
+                Code expires in 10 minutes.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `,
+    fromName: "Antariksh Command",
+  });
+};
+
 export const sendVaultNotification = async (email, asteroidName) => {
   try {
     return await sendMail({

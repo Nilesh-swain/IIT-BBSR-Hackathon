@@ -135,6 +135,7 @@ export const publishResearchPaper = async (req, res, next) => {
     const recipients = await User.find({
       isVerified: true,
       email: { $exists: true, $ne: null },
+      "notificationPreferences.emailUpdates": true,
     })
       .select("email")
       .lean();
