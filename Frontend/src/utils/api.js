@@ -7,8 +7,8 @@
 import { API_BASE } from "../config/api.js";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const RETRY_DELAYS_MS = [2000, 5000, 10000, 20000];
-const DEFAULT_TIMEOUT_MS = 20000;
+const RETRY_DELAYS_MS = [500, 1500, 3000];
+const DEFAULT_TIMEOUT_MS = 12000;
 
 const createApiError = (message, details = {}) => {
   const error = new Error(message);
@@ -45,12 +45,13 @@ export async function apiFetch(endpoint, options = {}, retryIndex = 0) {
     signal: controller.signal,
     ...options,
   };
+  const method = (config.method || "GET").toUpperCase();
 
   try {
     console.log(
       JSON.stringify({
         scope: "api_request",
-        method: config.method || "GET",
+        method,
         url,
         attempt: retryIndex + 1,
         timestamp: new Date().toISOString(),
@@ -61,7 +62,7 @@ export async function apiFetch(endpoint, options = {}, retryIndex = 0) {
     console.log(
       JSON.stringify({
         scope: "api_response",
-        method: config.method || "GET",
+        method,
         url,
         status: response.status,
         statusText: response.statusText,
@@ -74,7 +75,7 @@ export async function apiFetch(endpoint, options = {}, retryIndex = 0) {
       console.error(
         JSON.stringify({
           scope: "api_error",
-          method: config.method || "GET",
+          method,
           url,
           status: response.status,
           body: errorText,
@@ -117,9 +118,10 @@ export async function apiFetch(endpoint, options = {}, retryIndex = 0) {
     });
   } catch (error) {
     const isNetworkError =
-      error instanceof TypeError ||
+      (method === "GET" || method === "HEAD") &&
+      (error instanceof TypeError ||
       error.name === "AbortError" ||
-      error.message.includes("Failed to fetch");
+      error.message.includes("Failed to fetch"));
 
     if (isNetworkError && retryIndex < RETRY_DELAYS_MS.length) {
       const delay = RETRY_DELAYS_MS[retryIndex];
@@ -127,7 +129,7 @@ export async function apiFetch(endpoint, options = {}, retryIndex = 0) {
       console.warn(
         JSON.stringify({
           scope: "api_retry",
-          method: config.method || "GET",
+          method,
           url,
           attempt: retryIndex + 1,
           nextDelayMs: delay,
@@ -142,7 +144,7 @@ export async function apiFetch(endpoint, options = {}, retryIndex = 0) {
     console.error(
       JSON.stringify({
         scope: "api_fatal",
-        method: config.method || "GET",
+        method,
         url,
         message: error.message,
         status: error.status || null,

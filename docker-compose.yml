@@ -13,6 +13,12 @@ services:
       - PORT=5000
     networks:
       - appnet
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # Frontend Web Server
   frontend:
@@ -22,7 +28,7 @@ services:
       args:
         - VITE_NASA_API_KEY=ckfrdvoegfX4HecZhliguIiOdFxhGWXfLeHQ2VsK
         - VITE_NASA_BASE_URL=https://api.nasa.gov/neo/rest/v1
-        - VITE_API_URL=http://backend:5000/api
+        - VITE_API_URL=/api
     container_name: frontend
     restart: unless-stopped
     depends_on:

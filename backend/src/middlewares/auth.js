@@ -3,12 +3,15 @@ import User from "../models/userModel.js";
 
 export const protect = async (req, res, next) => {
   try {
-    const { token } = req.cookies;
+    const bearerToken = req.headers.authorization?.startsWith("Bearer ")
+      ? req.headers.authorization.split(" ")[1]
+      : null;
+    const token = req.cookies?.token || bearerToken;
 
     if (!token) {
       return res
         .status(401)
-        .json({ message: "Please login to access this resource" });
+        .json({ success: false, message: "Please login to access this resource" });
     }
 
     const decodedData = jwt.verify(token, process.env.JWT_SECRET);
@@ -17,7 +20,7 @@ export const protect = async (req, res, next) => {
       .lean();
 
     if (!user) {
-      return res.status(401).json({ message: "Invalid session" });
+      return res.status(401).json({ success: false, message: "Invalid session" });
     }
 
     req.user = {
@@ -27,7 +30,7 @@ export const protect = async (req, res, next) => {
 
     next();
   } catch (error) {
-    return res.status(401).json({ message: "Invalid session" });
+    return res.status(401).json({ success: false, message: "Invalid session" });
   }
 };
 
@@ -36,7 +39,7 @@ export const authorize = (...roles) => {
     if (!roles.includes(req.user.role)) {
       return res
         .status(403)
-        .json({ message: `Role ${req.user.role} not authorized` });
+        .json({ success: false, message: `Role ${req.user.role} not authorized` });
     }
     next();
   };

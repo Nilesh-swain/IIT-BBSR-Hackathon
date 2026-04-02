@@ -1,7 +1,5 @@
 import "dotenv/config";
 import dns from "node:dns";
-dns.setServers(["8.8.8.8", "8.8.4.4"]); // 🌐 Fix DNS issues
-
 import express from "express";
 import mongoose from "mongoose";
 import cookieParser from "cookie-parser";
@@ -11,27 +9,30 @@ import morgan from "morgan";
 import cron from "node-cron";
 import { createServer } from "http";
 
-// --- IMPORT MODELS FIRST (IMPORTANT) ---
 import "./src/models/Watchlist.js";
 import "./src/models/OtpVerification.js";
 import "./src/models/AuthChallenge.js";
 import "./src/models/CaptchaChallenge.js";
 
-// Services & Middlewares
 import { fetchAndCacheAsteroids } from "./src/services/nasaService.js";
+import { verifyMailConnection } from "./src/services/emailService.js";
 import errorMiddleware from "./src/middlewares/error.js";
 
-// Routes
 import authRoutes from "./src/routes/userRoutes.js";
 import asteroidRoutes from "./src/routes/asteroidRoutes.js";
 import watchlistRoutes from "./src/routes/watchlistRoutes.js";
 import communityRoutes from "./src/routes/communityRoutes.js";
 import researchRoutes from "./src/routes/researchRoutes.js";
 
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
+
 const app = express();
+const httpServer = createServer(app);
 const PORT = Number(process.env.PORT) || 5000;
-const DB_RETRY_DELAYS_MS = [2000, 5000, 10000, 20000];
 const DATABASE_NAME = process.env.MONGO_DB_NAME || "antariksh";
+const DB_RETRY_DELAYS_MS = [2000, 5000, 10000, 20000];
+const isProduction = process.env.NODE_ENV === "production";
+
 const allowedOrigins = Array.from(
   new Set(
     [
@@ -50,24 +51,35 @@ const allowedOrigins = Array.from(
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const logEvent = (scope, details = {}) => {
-  console.log(
-    JSON.stringify({
-      scope,
-      timestamp: new Date().toISOString(),
-      ...details,
-    }),
-  );
+  const logObject = {
+    scope,
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+    ...details,
+  };
+
+  if (isProduction) {
+    console.log(JSON.stringify(logObject));
+  } else {
+    const detailStr = Object.keys(details).length ? JSON.stringify(details) : "";
+    console.log(`\x1b[36m[${logObject.timestamp}]\x1b[0m \x1b[33m[${scope}]\x1b[0m ${detailStr}`);
+  }
 };
 
 const getStatusPayload = () => ({
   success: true,
   status: "ok",
   service: "antariksh-api",
+  version: "2.1.0",
   uptimeSeconds: Math.round(process.uptime()),
+  environment: process.env.NODE_ENV || "development",
   database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
   databaseName: mongoose.connection.name || DATABASE_NAME,
+  memoryUsage: process.memoryUsage(),
 });
+
 const isAllowedOrigin = (origin) => !origin || allowedOrigins.includes(origin);
+
 const corsOptions = {
   origin: (origin, callback) => {
     if (isAllowedOrigin(origin)) {
@@ -89,45 +101,27 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 
-// --- 1. SECURITY & CORE MIDDLEWARES ---
+app.set("trust proxy", 1);
 app.use(
   helmet({
-    crossOriginResourcePolicy: false, // 🛡️ Necessary for cross-domain auth
-  })
+    crossOriginResourcePolicy: false,
+  }),
 );
-app.use(morgan("dev"));
+app.use(morgan(isProduction ? "combined" : "dev"));
+app.use(cors(corsOptions));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
 app.use((req, res, next) => {
   logEvent("api_request", {
     method: req.method,
     path: req.originalUrl,
     origin: req.headers.origin || null,
   });
-
-  const requestOrigin = req.headers.origin;
-  if (isAllowedOrigin(requestOrigin) && requestOrigin) {
-    res.header("Access-Control-Allow-Origin", requestOrigin);
-    res.header("Vary", "Origin");
-    res.header("Access-Control-Allow-Credentials", "true");
-    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  }
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-
   next();
 });
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
 
-// --- 2. CORS CONFIG ---
-app.use(
-  cors(corsOptions)
-);
-
-// --- 3. DATABASE CONNECTION ---
 const cleanupOrphanWatchlistRecords = async () => {
   const Watchlist = mongoose.model("Watchlist");
   const result = await Watchlist.deleteMany({
@@ -156,6 +150,7 @@ const connectDB = async () => {
         host: conn.connection.host,
         databaseName: conn.connection.name,
       });
+
       await cleanupOrphanWatchlistRecords();
       return conn;
     } catch (error) {
@@ -182,35 +177,37 @@ const connectDB = async () => {
   throw lastError;
 };
 
-// 🌌 INITIAL SYNC FUNCTION (Robust Data Registry)
 const runInitialSync = async () => {
   try {
     const Asteroid = mongoose.model("Asteroid");
     const asteroidCount = await Asteroid.countDocuments();
-    
-    console.log(`🌌 Registry Status: ${asteroidCount} objects indexed in Atlas.`);
+
+    logEvent("asteroid_registry_status", { asteroidCount });
 
     if (asteroidCount < 20) {
-      console.log("🌌 Initializing Data Uplink to NASA API...");
       const today = new Date().toISOString().split("T")[0];
       const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         .toISOString()
         .split("T")[0];
 
       await fetchAndCacheAsteroids(today, endDate);
-      console.log("✅ Registry Synchronized Successfully.");
+      logEvent("asteroid_registry_sync_complete");
     }
   } catch (error) {
-    console.error("⚠️ Local Registry Synchronization Failure:", error.message);
-    if (process.env.NODE_ENV === "production") {
-      console.warn("⚠️ Production Hint: Ensure NASA_API_KEY is available and Atlas IP whitelist allows connections.");
-    }
+    console.error(
+      JSON.stringify({
+        scope: "asteroid_registry_sync_failed",
+        message: error.message,
+      }),
+    );
   }
 };
 
-// --- 4. HEALTH CHECK & ROOT ---
 app.get("/", (req, res) => {
-  res.send("Antariksh API is Live and Operational 🚀");
+  res.status(200).json({
+    success: true,
+    message: "Antariksh API is live and operational.",
+  });
 });
 
 app.get("/status", (req, res) => {
@@ -224,19 +221,17 @@ app.get("/api/status", (req, res) => {
 app.get("/api/test", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "Connectivity confirmed! 🚀",
+    message: "Connectivity confirmed.",
     timestamp: new Date().toISOString(),
   });
 });
 
-// --- 5. ROUTES ---
 app.use("/api/auth", authRoutes);
 app.use("/api/asteroids", asteroidRoutes);
 app.use("/api/watchlist", watchlistRoutes);
 app.use("/api/community", communityRoutes);
 app.use("/api/research", researchRoutes);
 
-// --- 6. 404 HANDLER ---
 app.use("/{*any}", (req, res) => {
   res.status(404).json({
     success: false,
@@ -244,28 +239,26 @@ app.use("/{*any}", (req, res) => {
   });
 });
 
-// --- 7. GLOBAL ERROR HANDLER ---
 app.use(errorMiddleware);
 
-const httpServer = createServer(app);
-
-// --- 10. CRON JOB (NASA DATA SYNC) ---
 cron.schedule("0 */6 * * *", async () => {
   try {
-    console.log("🌌 Updating asteroid cache...");
+    logEvent("asteroid_cache_refresh_started");
 
     const today = new Date().toISOString().split("T")[0];
-    const endDate = new Date(
-      Date.now() + 7 * 24 * 60 * 60 * 1000
-    )
+    const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
       .toISOString()
       .split("T")[0];
 
     await fetchAndCacheAsteroids(today, endDate);
-
-    console.log("✅ Cache updated");
+    logEvent("asteroid_cache_refresh_complete");
   } catch (error) {
-    console.error("❌ Cron failed:", error.message);
+    console.error(
+      JSON.stringify({
+        scope: "asteroid_cache_refresh_failed",
+        message: error.message,
+      }),
+    );
   }
 });
 
@@ -290,7 +283,15 @@ mongoose.connection.on("error", (error) => {
 const startServer = async () => {
   try {
     await connectDB();
-    await runInitialSync();
+    const mailReady = await verifyMailConnection();
+
+    if (!mailReady) {
+      console.warn("Mail system is not ready. Registration will be offline.");
+    }
+
+    if (!isProduction || String(process.env.ENABLE_NASA_SYNC_ON_BOOT || "true") === "true") {
+      await runInitialSync();
+    }
 
     httpServer.listen(PORT, "0.0.0.0", () => {
       logEvent("server_started", { port: PORT });

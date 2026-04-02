@@ -73,6 +73,7 @@ const LoginPage = () => {
     } catch (error) {
       if (error.message.toLowerCase().includes("pending verification")) {
         setStatus("PENDING_VERIFY");
+        sessionStorage.setItem("pending_verification_email", creds.username);
         return;
       }
 

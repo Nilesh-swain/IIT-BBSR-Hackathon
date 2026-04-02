@@ -1,4 +1,5 @@
 import Post from "../models/Post.js";
+import { sendContactEmail } from "../services/emailService.js";
 
 const VALID_CATEGORIES = ["THREAT_REPORTS", "INTEL_UPLINK", "CORE_ANOMALIES"];
 
@@ -164,6 +165,31 @@ export const addComment = async (req, res, next) => {
     res.status(200).json({
       success: true,
       post: populatedPost,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const submitContactForm = async (req, res, next) => {
+  try {
+    const name = String(req.body?.name || "").trim();
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const subject = String(req.body?.subject || "").trim();
+    const message = String(req.body?.message || "").trim();
+
+    if (!name || !email || !message) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, email, and message are required.",
+      });
+    }
+
+    await sendContactEmail({ name, email, subject, message });
+
+    res.status(202).json({
+      success: true,
+      message: "Your message was sent successfully.",
     });
   } catch (error) {
     next(error);

@@ -6,10 +6,21 @@ import {
   getPosts,
   toggleLike,
   addComment,
+  submitContactForm,
 } from "../controllers/communityController.js";
+import { createRateLimit } from "../middlewares/rateLimit.js";
 
 // mergeParams: true is excellent for nested asteroid routes
 const router = express.Router({ mergeParams: true });
+const contactLimiter = createRateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 3,
+  keyGenerator: (req) =>
+    `${req.ip}:${String(req.body?.email || "").trim().toLowerCase() || "unknown"}`,
+  message: "Too many contact form requests. Please try again later.",
+});
+
+router.post("/contact", contactLimiter, submitContactForm);
 
 /**
  * ASTEROID SPECIFIC FEED

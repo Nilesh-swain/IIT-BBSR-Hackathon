@@ -168,27 +168,33 @@ const createTrustedDevicePayload = (deviceLabel = "Trusted device") => {
   };
 };
 
-export const buildTrustedDeviceCookie = (token) => ({
-  name: "trusted_device",
-  value: token,
-  options: {
-    expires: new Date(Date.now() + TRUSTED_DEVICE_TTL_MS),
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-  },
-});
+export const buildTrustedDeviceCookie = (token) => {
+  const isProd = process.env.NODE_ENV === "production";
+  return {
+    name: "trusted_device",
+    value: token,
+    options: {
+      expires: new Date(Date.now() + TRUSTED_DEVICE_TTL_MS),
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "None" : "Lax",
+    },
+  };
+};
 
-export const clearTrustedDeviceCookie = () => ({
-  name: "trusted_device",
-  value: "",
-  options: {
-    expires: new Date(0),
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-  },
-});
+export const clearTrustedDeviceCookie = () => {
+  const isProd = process.env.NODE_ENV === "production";
+  return {
+    name: "trusted_device",
+    value: "",
+    options: {
+      expires: new Date(0),
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "None" : "Lax",
+    },
+  };
+};
 
 export const issueCaptchaChallenge = async ({ scope }) => {
   const normalizedScope = scope === "login" ? "login" : "signup";
@@ -321,11 +327,20 @@ export const createRegistrationOtp = async ({
     },
   );
 
-  queueOtpEmail({
+  await sendEmail({
     email: normalizedEmail,
     otp,
     subject: "Antariksh Security Protocol: Verification OTP",
   });
+
+  console.log(
+    JSON.stringify({
+      scope: "registration_otp_issued",
+      email: normalizedEmail,
+      userId: pendingUser._id,
+      timestamp: new Date().toISOString(),
+    }),
+  );
 
   return {
     status: 202,
@@ -339,7 +354,7 @@ export const createRegistrationOtp = async ({
       expiresInSeconds: REGISTRATION_OTP_TTL_MS / 1000,
     },
   };
-};
+}
 
 export const verifyRegistrationOtp = async ({ email, otp }) => {
   const normalizedEmail = normalizeEmail(email);
@@ -380,6 +395,15 @@ export const verifyRegistrationOtp = async ({ email, otp }) => {
 
   await OtpVerification.deleteOne({ _id: pendingVerification._id });
 
+  console.log(
+    JSON.stringify({
+      scope: "registration_verified",
+      email: normalizedEmail,
+      userId: user._id,
+      timestamp: new Date().toISOString(),
+    }),
+  );
+
   return { status: 200, user };
 };
 
@@ -409,7 +433,7 @@ export const resendRegistrationOtp = async ({ email }) => {
   pendingVerification.expiresAt = new Date(Date.now() + REGISTRATION_OTP_TTL_MS);
   await pendingVerification.save();
 
-  queueOtpEmail({
+  await sendEmail({
     email: pendingVerification.email,
     otp: pendingVerification.otp,
     subject: "Antariksh Security Protocol: New Verification OTP",
@@ -492,8 +516,26 @@ export const authenticateUser = async ({
       },
     );
 
+    console.log(
+      JSON.stringify({
+        scope: "login_success",
+        email: normalizedEmail,
+        trustedDevice: true,
+        timestamp: new Date().toISOString(),
+      }),
+    );
+
     return { status: 200, user };
   }
+
+  console.log(
+    JSON.stringify({
+      scope: "login_success",
+      email: normalizedEmail,
+      trustedDevice: false,
+      timestamp: new Date().toISOString(),
+    }),
+  );
 
   return { status: 200, user };
 };
@@ -648,7 +690,7 @@ export const requestPasswordReset = async ({ email }) => {
     },
   });
 
-  queueSecurityEmail({
+  await sendSecurityOtpEmail({
     email: user.email,
     otp,
     subject: "Antariksh Password Reset Code",

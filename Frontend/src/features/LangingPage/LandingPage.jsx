@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { apiPost } from "../../utils/api.js";
 import { 
   ChevronRight, 
   Activity, 
@@ -11,8 +12,9 @@ import {
   Compass,
   Radio,
   Cpu,
-  Unlink,
-  Layers
+  Layers,
+  Send,
+  Mail,
 } from "lucide-react";
 import gsap from "gsap";
 
@@ -20,6 +22,17 @@ const AntarikshLanding = () => {
   const containerRef = useRef(null);
   const navigate = useNavigate();
   const [time, setTime] = useState(new Date().toISOString());
+  const [contact, setContact] = useState({
+    name: "",
+    email: "",
+    subject: "",
+    message: "",
+  });
+  const [contactState, setContactState] = useState({
+    loading: false,
+    error: "",
+    success: "",
+  });
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date().toISOString()), 1000);
@@ -39,8 +52,29 @@ const AntarikshLanding = () => {
     return () => ctx.revert();
   }, []);
 
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+    setContactState({ loading: true, error: "", success: "" });
+
+    try {
+      const response = await apiPost("/api/community/contact", contact);
+      setContactState({
+        loading: false,
+        error: "",
+        success: response.message || "Message sent successfully.",
+      });
+      setContact({ name: "", email: "", subject: "", message: "" });
+    } catch (error) {
+      setContactState({
+        loading: false,
+        error: error.message || "Unable to send message right now.",
+        success: "",
+      });
+    }
+  };
+
   return (
-    <div ref={containerRef} className="relative h-screen w-full bg-[#040508] text-slate-200 overflow-hidden font-sans antialiased">
+    <div ref={containerRef} className="relative min-h-screen w-full bg-[#040508] text-slate-200 overflow-x-hidden font-sans antialiased">
       
       {/* --- BACKGROUND ARCHITECTURE --- */}
       <div className="absolute inset-0 pointer-events-none">
@@ -49,7 +83,7 @@ const AntarikshLanding = () => {
       </div>
 
       {/* --- TOP NAVIGATION BAR --- */}
-      <nav className="absolute top-0 w-full z-50 px-12 py-8 flex justify-between items-center border-b border-white/5 bg-[#040508]/60 backdrop-blur-xl">
+      <nav className="absolute top-0 w-full z-50 px-4 py-6 sm:px-6 lg:px-12 lg:py-8 flex justify-between items-center border-b border-white/5 bg-[#040508]/60 backdrop-blur-xl">
         <div className="flex items-center gap-10">
           <div className="flex flex-col">
             <h2 className="text-3xl font-black tracking-tighter text-white uppercase italic leading-none">Antariksh</h2>
@@ -79,7 +113,7 @@ const AntarikshLanding = () => {
       </nav>
 
       {/* --- MAIN INTERFACE --- */}
-      <main className="relative z-10 h-full pt-32 pb-12 px-12 flex flex-col justify-center">
+      <main className="relative z-10 min-h-full pt-28 pb-36 px-4 sm:px-6 lg:px-12 flex flex-col justify-center">
         <div className="max-w-[1400px] mx-auto w-full grid lg:grid-cols-12 gap-8">
           
           {/* LEFT: MISSION STATEMENT */}
@@ -115,7 +149,7 @@ const AntarikshLanding = () => {
           </div>
 
           {/* RIGHT: TACTICAL BENTO GRID */}
-          <div className="lg:col-span-5 grid grid-cols-2 gap-4">
+          <div className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
             
             {/* Object Card */}
             <div className="col-span-2 ui-parallax bg-white/[0.02] border border-white/10 p-8 backdrop-blur-sm relative overflow-hidden group">
@@ -137,12 +171,69 @@ const AntarikshLanding = () => {
             <MetricBox icon={Layers} label="Objects" val="2.4M+" />
             <MetricBox icon={ShieldCheck} label="Defense" val="Active" />
 
+            <div className="col-span-1 sm:col-span-2 ui-parallax bg-white/[0.02] border border-white/10 p-6 backdrop-blur-sm">
+              <div className="flex items-center gap-3 mb-5">
+                <Mail size={16} className="text-orange-600" />
+                <p className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em]">
+                  Contact Relay
+                </p>
+              </div>
+              <form onSubmit={handleContactSubmit} className="space-y-3">
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <input
+                    value={contact.name}
+                    onChange={(e) => setContact({ ...contact, name: e.target.value })}
+                    placeholder="Name"
+                    className="landing-input"
+                  />
+                  <input
+                    value={contact.email}
+                    onChange={(e) => setContact({ ...contact, email: e.target.value })}
+                    placeholder="Email"
+                    type="email"
+                    className="landing-input"
+                  />
+                </div>
+                <input
+                  value={contact.subject}
+                  onChange={(e) => setContact({ ...contact, subject: e.target.value })}
+                  placeholder="Subject"
+                  className="landing-input"
+                />
+                <textarea
+                  value={contact.message}
+                  onChange={(e) => setContact({ ...contact, message: e.target.value })}
+                  placeholder="Send feedback or deployment issue details"
+                  rows="4"
+                  className="landing-input min-h-[110px] resize-none"
+                />
+                {contactState.error ? (
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-rose-400">
+                    {contactState.error}
+                  </p>
+                ) : null}
+                {contactState.success ? (
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">
+                    {contactState.success}
+                  </p>
+                ) : null}
+                <button
+                  type="submit"
+                  disabled={contactState.loading}
+                  className="w-full sm:w-auto px-5 py-3 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-[0.25em] transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                >
+                  {contactState.loading ? "Sending" : "Send Relay"}
+                  <Send size={14} />
+                </button>
+              </form>
+            </div>
+
           </div>
         </div>
       </main>
 
       {/* --- STATUS FOOTER --- */}
-      <footer className="absolute bottom-0 w-full px-12 py-8 bg-[#040508]/80 backdrop-blur-md border-t border-white/5">
+      <footer className="relative w-full px-4 sm:px-6 lg:px-12 py-6 sm:py-8 bg-[#040508]/80 backdrop-blur-md border-t border-white/5">
         <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex gap-16 font-mono">
             <FooterItem label="Network_Load" val="12.4%" />
@@ -155,6 +246,8 @@ const AntarikshLanding = () => {
           </div>
         </div>
       </footer>
+
+      <style>{styles}</style>
 
     </div>
   );
@@ -195,5 +288,25 @@ const FooterItem = ({ label, val }) => (
     <span className="text-sm font-bold text-white tabular-nums">{val}</span>
   </div>
 );
+
+const styles = `
+  .landing-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0.85rem 0.95rem;
+    color: white;
+    font-size: 0.85rem;
+    outline: none;
+    transition: all 0.2s ease;
+  }
+  .landing-input:focus {
+    border-color: rgba(234, 88, 12, 0.5);
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .landing-input::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+  }
+`;
 
 export default AntarikshLanding;

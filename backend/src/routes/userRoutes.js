@@ -18,36 +18,49 @@ import {
 } from "../controllers/userController.js";
 import { protect as isAuthenticated } from "../middlewares/auth.js";
 import upload from "../config/cloudinary.js"; // Standard Cloudinary/Multer config
+import { createRateLimit } from "../middlewares/rateLimit.js";
 
 const router = express.Router();
+const authByIpLimiter = createRateLimit({
+  windowMs: 60 * 1000,
+  max: 12,
+  message: "Too many auth attempts. Please wait a minute and try again.",
+});
+const otpByEmailLimiter = createRateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) =>
+    `${req.ip}:${String(req.body?.email || "").trim().toLowerCase() || "unknown"}`,
+  message: "Too many OTP requests. Please wait before requesting another code.",
+});
 
 /** * --- PUBLIC AUTH PROTOCOLS --- 
  * These endpoints handle identity creation and session initiation.
  */
 
 // @route   POST /api/auth/register
-router.post("/register", registerUser);
+router.post("/register", authByIpLimiter, registerUser);
 
 // @route   POST /api/auth/verify-otp
-router.post("/verify-otp", verifyOTP);
+router.post("/verify-otp", authByIpLimiter, verifyOTP);
 
 // @route   POST /api/auth/login
-router.post("/login", loginUser);
+router.post("/login", authByIpLimiter, loginUser);
 
 // @route   POST /api/auth/captcha
-router.post("/captcha", getCaptchaChallenge);
+router.post("/captcha", authByIpLimiter, getCaptchaChallenge);
 
 // @route   POST /api/auth/resend-otp
-router.post("/resend-otp", resendOTP);
+router.post("/resend-otp", otpByEmailLimiter, resendOTP);
 
 // @route   POST /api/auth/forgot-password
-router.post("/forgot-password", forgotPassword);
+router.post("/forgot-password", otpByEmailLimiter, forgotPassword);
 
 // @route   POST /api/auth/forgot-password/verify-otp
-router.post("/forgot-password/verify-otp", verifyForgotPasswordOtp);
+router.post("/forgot-password/verify-otp", authByIpLimiter, verifyForgotPasswordOtp);
 
 // @route   POST /api/auth/reset-password
-router.post("/reset-password", resetPassword);
+router.post("/reset-password", authByIpLimiter, resetPassword);
 
 // @route   GET /api/auth/logout
 router.get("/logout", logout);

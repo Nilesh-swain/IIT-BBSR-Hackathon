@@ -119,7 +119,7 @@ const DataHub = () => {
       }
     } catch (error) {
       console.error("Failed to fetch watchlist:", error);
-      if (error.message.includes("401") || error.message.includes("AUTH")) {
+      if (error.status === 401 || error.message.includes("AUTH")) {
         setIsAuthenticated(false);
       }
     } finally {
@@ -131,16 +131,24 @@ const DataHub = () => {
     e.stopPropagation();
 
     if (!isAuthenticated) {
-      alert("Please login to save asteroids to your personal vault.");
+      addNotification({
+        title: "AUTH_REQUIRED",
+        message: "Please login to save asteroids to your personal vault.",
+        type: "WARN",
+      });
       return;
     }
 
     try {
       setWatchlistLoading(true);
+      const asteroidId = String(ast.id || ast.neo_reference_id || ast.asteroidId || "");
       const payload = {
-        asteroidId: ast.id,
+        asteroidId,
         name: ast.name,
-        asteroidData: ast,
+        asteroidData: {
+          ...ast,
+          id: asteroidId,
+        },
       };
 
       const response = await apiPost("/api/watchlist/toggle", payload);
@@ -155,6 +163,11 @@ const DataHub = () => {
       }
     } catch (error) {
       console.error("Failed to toggle watchlist:", error);
+      addNotification({
+        title: "VAULT_UPDATE_FAILED",
+        message: error.message || "Unable to update your asteroid vault.",
+        type: "WARN",
+      });
     } finally {
       setWatchlistLoading(false);
     }

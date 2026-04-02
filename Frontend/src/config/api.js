@@ -21,6 +21,10 @@ const resolveApiBase = () => {
     return "http://localhost:5000/api";
   }
 
+  if (window.location.hostname.includes("vercel.app")) {
+    return `${trimTrailingSlash(window.location.origin)}/api`;
+  }
+
   return `${trimTrailingSlash(window.location.origin)}/api`;
 };
 

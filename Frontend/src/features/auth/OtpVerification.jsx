@@ -14,26 +14,41 @@ import {
 } from "lucide-react";
 
 const OtpVerification = (props) => {
-  const [otp, setOtp] = useState(new Array(6).fill(""));
-  const [status, setStatus] = useState("idle");
-  const [sysTime, setSysTime] = useState("");
-  const [message, setMessage] = useState("");
-  const inputRefs = useRef([]);
-  const navigate = useNavigate();
-  const location = useLocation();
-
   const state = location.state || {};
-  const email = props.email || state.email || "operator@example.com";
+  const [email, setEmail] = useState("");
+  const [timeLeft, setTimeLeft] = useState(600); // 10 minutes
+
+  useEffect(() => {
+    const storedEmail = sessionStorage.getItem("pending_verification_email");
+    const currentEmail = props.email || state.email || storedEmail;
+
+    if (currentEmail && currentEmail !== "operator@example.com") {
+      setEmail(currentEmail);
+      sessionStorage.setItem("pending_verification_email", currentEmail);
+    } else if (!currentEmail) {
+      navigate("/auth/signup", { replace: true });
+    } else {
+        setEmail(currentEmail);
+    }
+  }, [props.email, state.email, navigate]);
 
   useEffect(() => {
     if (inputRefs.current[0]) inputRefs.current[0].focus();
 
-    const timer = setInterval(() => {
+    const sysTimer = setInterval(() => {
       setSysTime(
         new Date().toLocaleTimeString("en-GB", { hour12: false }) + " UTC",
       );
     }, 1000);
-    return () => clearInterval(timer);
+
+    const countdownTimer = setInterval(() => {
+      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => {
+      clearInterval(sysTimer);
+      clearInterval(countdownTimer);
+    };
   }, []);
 
   const handleChange = (e, index) => {
@@ -66,6 +81,7 @@ const OtpVerification = (props) => {
     try {
       await apiPost("/api/auth/verify-otp", { email, otp: entry });
       setStatus("success");
+      sessionStorage.removeItem("pending_verification_email");
       setTimeout(() => navigate("/cosmos", { replace: true }), 1000);
     } catch (error) {
       setMessage(error.message || "Verification failed.");
@@ -82,10 +98,17 @@ const OtpVerification = (props) => {
     try {
       setMessage("");
       await apiPost("/api/auth/resend-otp", { email });
+      setTimeLeft(600);
       setMessage("A fresh OTP has been sent to your email.");
     } catch (error) {
       setMessage(error.message || "Unable to resend OTP.");
     }
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -123,6 +146,11 @@ const OtpVerification = (props) => {
             <div className="space-y-3 pt-6 border-t border-white/5">
               <TelemetryItem label="Channel" value={email} />
               <TelemetryItem label="Mode" value="REGISTRATION OTP" color="text-emerald-500" />
+              <TelemetryItem 
+                label="Expires" 
+                value={formatTime(timeLeft)} 
+                color={timeLeft < 60 ? "text-rose-500 animate-pulse" : "text-white"} 
+              />
               <TelemetryItem
                 label="Uplink"
                 value={status.toUpperCase()}

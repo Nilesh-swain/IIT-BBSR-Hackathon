@@ -65,6 +65,10 @@ const SignupPage = () => {
         captchaToken: captcha.token,
       });
       setRegComplete(true);
+      
+      // Store email for refresh persistence
+      sessionStorage.setItem("pending_verification_email", response?.email || form.email);
+      
       setTimeout(() => {
         navigate("/auth/verify", {
           state: { email: response?.email || form.email, mode: "registration" },
@@ -73,7 +77,7 @@ const SignupPage = () => {
       }, 1500);
     } catch (error) {
       setRegError(error.message);
-      loadCaptcha();
+      loadCaptcha(); // Auto refresh captcha on failure
     } finally {
       setLoading(false);
     }
