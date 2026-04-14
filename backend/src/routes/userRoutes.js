@@ -4,6 +4,8 @@ import {
   verifyOTP,
   loginUser,
   logout,
+  requestLoginOtpController,
+  verifyLoginOtpController,
   getMyProfile,
   updateProfile,
   uploadAvatar,
@@ -46,6 +48,12 @@ router.post("/verify-otp", authByIpLimiter, verifyOTP);
 
 // @route   POST /api/auth/login
 router.post("/login", authByIpLimiter, loginUser);
+
+// @route   POST /api/auth/login/request-otp
+router.post("/login/request-otp", otpByEmailLimiter, requestLoginOtpController);
+
+// @route   POST /api/auth/login/verify-otp
+router.post("/login/verify-otp", authByIpLimiter, verifyLoginOtpController);
 
 // @route   POST /api/auth/captcha
 router.post("/captcha", authByIpLimiter, getCaptchaChallenge);

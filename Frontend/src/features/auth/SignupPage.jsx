@@ -10,45 +10,52 @@ import {
   Radar,
   Terminal,
   Loader2,
-  ShieldCheck,
-  Activity,
   RefreshCcw,
+  ScanEye,
+  Activity,
   Cpu,
-  Globe
+  ShieldAlert,
+  Dna,
+  Boxes,
+  Target,
+  Fingerprint,
 } from "lucide-react";
 
 const SignupPage = () => {
   const [loading, setLoading] = useState(false);
-  const [regComplete, setRegComplete] = useState(false);
+  const [captchaLoading, setCaptchaLoading] = useState(false);
   const [sysTime, setSysTime] = useState("");
-  const [regError, setRegError] = useState("");
+  const [captcha, setCaptcha] = useState({ token: "", image: "" });
   const [form, setForm] = useState({
     username: "",
     email: "",
     password: "",
     captchaAnswer: "",
   });
-  const [captcha, setCaptcha] = useState({ token: "", question: "" });
-  const [captchaLoading, setCaptchaLoading] = useState(false);
+  const [status, setStatus] = useState("STANDBY");
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setSysTime(new Date().toLocaleTimeString("en-GB", { hour12: false }) + " UTC");
+      setSysTime(
+        new Date().toLocaleTimeString("en-GB", { hour12: false }) + " UTC",
+      );
     }, 1000);
+    loadVisualCaptcha();
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => { loadCaptcha(); }, []);
-
-  const loadCaptcha = async () => {
+  const loadVisualCaptcha = async () => {
     setCaptchaLoading(true);
     try {
-      const response = await apiPost("/api/auth/captcha", { scope: "signup" });
-      setCaptcha(response.data);
-      setForm((current) => ({ ...current, captchaAnswer: "" }));
-    } catch (error) {
-      setRegError("Captcha link failed.");
+      const { data } = await apiPost("/api/auth/captcha/visual", {
+        scope: "signup",
+      });
+      setCaptcha(data);
+      setForm((prev) => ({ ...prev, captchaAnswer: "" }));
+    } catch (err) {
+      console.error("SEC_LINK_ERROR: CAPTCHA_FAILURE");
     } finally {
       setCaptchaLoading(false);
     }
@@ -56,232 +63,355 @@ const SignupPage = () => {
 
   const handleSignup = async (e) => {
     e.preventDefault();
-    if (loading) return;
+    setError("");
+
+    // Client-side validation
+    if (form.username.trim().length < 3) {
+      setError("Username must be at least 3 characters long.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    if (form.password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return;
+    }
+    if (!captcha.token || !form.captchaAnswer.trim()) {
+      setError("Please complete the security check.");
+      return;
+    }
+
     setLoading(true);
-    setRegError("");
+    setStatus("SYNCING");
+
     try {
       const response = await apiPost("/api/auth/register", {
-        ...form,
+        username: form.username.trim(),
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
         captchaToken: captcha.token,
+        captchaAnswer: form.captchaAnswer.trim(),
       });
-      setRegComplete(true);
-      
-      // Store email for refresh persistence
-      sessionStorage.setItem("pending_verification_email", response?.email || form.email);
-      
-      setTimeout(() => {
-        navigate("/auth/verify", {
-          state: { email: response?.email || form.email, mode: "registration" },
-          replace: true,
-        });
-      }, 1500);
+
+      setStatus("SUCCESS");
+      // Store email for OTP verification
+      sessionStorage.setItem("pending_verification_email", form.email.trim().toLowerCase());
+      setTimeout(() => navigate("/auth/verify-otp", { state: { email: form.email.trim().toLowerCase() } }), 1500);
     } catch (error) {
-      setRegError(error.message);
-      loadCaptcha(); // Auto refresh captcha on failure
+      setStatus("FAILED");
+      setError(error.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#030407] text-slate-300 flex items-center justify-center p-4 font-sans selection:bg-orange-500/40 overflow-hidden">
-      {/* Background FX */}
-      <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#1a202c_0%,transparent_100%)] opacity-40" />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-50" />
+    <div className="min-h-screen w-full bg-[#020305] text-slate-300 flex items-center justify-center p-4 sm:p-6 font-sans antialiased selection:bg-orange-500/30 overflow-hidden relative">
+      {/* HIGH-TECH BACKGROUND LAYER */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#ea580c10,transparent_70%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(#ffffff05_1px,transparent_1px)] bg-[size:30px_30px]" />
+
+        {/* Moving Scanline FX */}
+        <motion.div
+          initial={{ y: "-100%" }}
+          animate={{ y: "100%" }}
+          transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+          className="absolute inset-0 w-full h-[2px] bg-orange-500/10 blur-sm z-0"
+        />
       </div>
 
       <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="relative z-10 w-full max-w-5xl grid lg:grid-cols-12 bg-[#08090B]/80 backdrop-blur-xl border border-white/10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] rounded-lg overflow-hidden"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative z-10 w-full max-w-5xl grid lg:grid-cols-12 bg-[#08090B]/90 backdrop-blur-xl border border-white/10 shadow-[0_0_80px_-20px_rgba(234,88,12,0.3)] overflow-hidden rounded-sm"
       >
-        {/* Left Side: Telemetry Panel */}
-        <div className="hidden lg:flex lg:col-span-4 flex-col justify-between p-8 bg-gradient-to-b from-[#0A0C10] to-transparent border-r border-white/5 relative">
-            {/* Animated Scan Line */}
-            <motion.div 
-                animate={{ y: [0, 400, 0] }} 
-                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                className="absolute left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-orange-500/20 to-transparent z-0" 
-            />
+        {/* --- LEFT SIDE: TACTICAL HUD --- */}
+        <div className="hidden lg:flex lg:col-span-5 flex-col justify-between p-10 xl:p-12 bg-gradient-to-b from-orange-600/[0.03] to-transparent border-r border-white/5 relative">
+          {/* Decorative Corner Brackets */}
+          <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-orange-600/30" />
+          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-orange-600/30" />
 
-          <div className="space-y-8 relative z-10">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-500/10 border border-orange-500/20 rounded">
-                <Radar size={18} className="text-orange-500" />
+          <div className="space-y-12 relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="w-12 h-12 bg-black border border-orange-600/50 flex items-center justify-center rotate-45 group transition-transform duration-500">
+                  <Target size={20} className="text-orange-600 -rotate-45" />
+                </div>
+                <div className="absolute -top-1 -left-1 w-2 h-2 bg-orange-600" />
               </div>
-              <h2 className="text-lg font-black tracking-widest text-white uppercase italic">Antariksh</h2>
+              <div>
+                <h2 className="text-xl font-black tracking-[0.2em] text-white uppercase italic">
+                  Antariksh
+                </h2>
+                <div className="flex gap-1 mt-1">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="h-1 w-3 bg-orange-600/20" />
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-4xl font-black text-white leading-[0.9] uppercase italic tracking-tighter">
-                Operator <br /> <span className="text-orange-600">Enrollment</span>
-              </h3>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed">
-                Auth_Protocol: v2.4.0 <br /> Clearance_Level: Beta
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-600/10 border border-orange-600/20 rounded-full text-orange-500 text-[10px] font-black tracking-widest uppercase">
+                <Activity size={12} className="animate-pulse" /> Uplink: Active
+              </div>
+              <h1 className="text-6xl font-black text-white leading-[0.85] uppercase tracking-tighter italic">
+                Enroll <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-orange-400">
+                  New_Entity.
+                </span>
+              </h1>
+              <p className="text-xs text-slate-400 leading-relaxed max-w-[300px] font-medium border-l-2 border-orange-600/50 pl-4 italic">
+                Securely establish your credentials within the orbital network.
               </p>
             </div>
 
-            <div className="space-y-4 pt-6">
-              <TelemetryItem icon={Globe} label="Region" value="Global_Edge" />
-              <TelemetryItem icon={Cpu} label="System" value="Neural_Link" />
-              <TelemetryItem icon={Activity} label="Status" value={loading ? "Processing..." : "Standby"} color={loading ? "text-orange-500" : "text-emerald-500"} />
+            <div className="grid grid-cols-2 gap-4 pt-8 border-t border-white/5">
+              <HUDStat label="Registry" value="SECURE_WAVE" />
+              <HUDStat label="Node" value="BHUBANESWAR_X1" />
+              <HUDStat
+                label="System"
+                value={status}
+                highlight={status === "SYNCING"}
+              />
+              <HUDStat label="Security" value="LEVEL_04" />
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-[10px] font-mono text-slate-500 tracking-tighter bg-white/5 p-2 rounded border border-white/5">
-            <Terminal size={12} className="text-orange-600" />
-            <span>{sysTime}</span>
+          <div className="flex items-center justify-between border-t border-white/5 pt-6">
+            <div className="flex items-center gap-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+              <Terminal size={14} className="text-orange-600" />
+              <span className="font-mono">{sysTime}</span>
+            </div>
+            <div className="w-2 h-2 rounded-full bg-orange-600 animate-pulse shadow-[0_0_8px_#ea580c]" />
           </div>
         </div>
 
-        {/* Right Side: Form Panel */}
-        <div className="lg:col-span-8 p-8 lg:p-12 flex flex-col justify-center bg-[#08090B]/50 relative">
-          <AnimatePresence mode="wait">
-            {!regComplete ? (
-              <motion.div
-                key="form"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="max-w-md w-full mx-auto space-y-6"
-              >
-                <header className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <div className="h-[1px] w-8 bg-orange-600" />
-                    <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em]">Identity Verification</span>
+        {/* --- RIGHT SIDE: INTERFACE --- */}
+        <div className="lg:col-span-7 p-6 sm:p-12 lg:p-16 flex flex-col justify-center bg-[#08090B] relative">
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-5 pointer-events-none" />
+
+          <div className="max-w-md w-full mx-auto space-y-10 relative z-10">
+            <header className="relative">
+              <div className="flex items-center gap-3 mb-2">
+                <Boxes size={16} className="text-orange-600" />
+                <span className="text-[10px] font-black text-orange-600/60 uppercase tracking-[0.5em]">
+                  Protocol_Initiated
+                </span>
+              </div>
+              <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
+                Access_Grant <span className="text-orange-600">01</span>
+              </h1>
+            </header>
+
+            <form onSubmit={handleSignup} className="space-y-6">
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="p-3 bg-red-500/10 border border-red-500/30 rounded text-red-500 text-[10px] font-bold uppercase tracking-widest text-center"
+                >
+                  {error}
+                </motion.div>
+              )}
+              {status === "SUCCESS" && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded text-emerald-500 text-[10px] font-bold uppercase tracking-widest text-center"
+                >
+                  Registration successful! Redirecting to verification...
+                </motion.div>
+              )}
+              <div className="space-y-5">
+                <CustomInput
+                  label="Operator Alias"
+                  icon={Fingerprint}
+                  placeholder="X-OPERATOR"
+                  value={form.username}
+                  onChange={(e) =>
+                    setForm({ ...form, username: e.target.value })
+                  }
+                />
+                <CustomInput
+                  label="Relay Email"
+                  icon={Mail}
+                  placeholder="void@antariksh.io"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
+                <CustomInput
+                  label="Security Cipher"
+                  icon={Lock}
+                  placeholder="••••••••"
+                  type="password"
+                  value={form.password}
+                  onChange={(e) =>
+                    setForm({ ...form, password: e.target.value })
+                  }
+                />
+              </div>
+
+              {/* NEURAL CHECK MODULE - FIXED IMAGE DISPLAY */}
+              <div className="bg-[#0A0C10] border border-white/5 p-5 relative group overflow-hidden rounded-xs">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-black text-orange-600 uppercase tracking-[0.2em] flex items-center gap-2">
+                      <ScanEye size={12} /> Neural_Check
+                    </label>
+                    <span className="text-[8px] text-slate-600 uppercase font-bold tracking-widest mt-0.5">
+                      Verification Required
+                    </span>
                   </div>
-                  <h1 className="text-3xl font-black text-white uppercase italic tracking-tighter">Request_Clearance</h1>
-                </header>
-
-                <form onSubmit={handleSignup} className="space-y-4">
-                  {regError && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-3 bg-rose-500/10 border-l-2 border-rose-500 text-rose-300 text-[11px] font-bold uppercase tracking-wider">
-                      Error: {regError}
-                    </motion.div>
-                  )}
-
-                  <div className="grid grid-cols-1 gap-4">
-                    <InputBox label="Operator Alias" icon={UserPlus} type="text" placeholder="X-742" value={form.username} onChange={(v) => setForm({...form, username: v})} />
-                    <InputBox label="Relay Email" icon={Mail} type="email" placeholder="void@antariksh.io" value={form.email} onChange={(v) => setForm({...form, email: v})} />
-                    <InputBox label="Security Secret" icon={Lock} type="password" placeholder="••••••••" value={form.password} onChange={(v) => setForm({...form, password: v})} />
-                  </div>
-
-                  {/* Captcha Section */}
-                  <div className="group relative bg-white/[0.03] border border-white/5 p-4 rounded-sm transition-all hover:bg-white/[0.05]">
-                    <div className="flex justify-between items-center mb-3">
-                      <label className="text-[10px] font-black uppercase text-orange-500 tracking-widest">Bot_Check</label>
-                      <button type="button" onClick={loadCaptcha} className="text-slate-500 hover:text-white transition-colors">
-                        <RefreshCcw size={14} className={captchaLoading ? "animate-spin" : ""} />
-                      </button>
-                    </div>
-                    <div className="flex gap-3">
-                        <div className="flex-1 text-sm font-mono text-white py-2 px-3 bg-black/40 border border-white/5 rounded italic">
-                            {captcha.question || "Verifying..."}
-                        </div>
-                        <input
-                            type="text"
-                            required
-                            className="w-24 bg-orange-600/10 border border-orange-600/30 text-center text-orange-500 text-sm font-bold outline-none focus:border-orange-500"
-                            placeholder="ANS"
-                            value={form.captchaAnswer}
-                            onChange={(e) => setForm({...form, captchaAnswer: e.target.value})}
-                        />
-                    </div>
-                  </div>
-
                   <button
-                    type="submit"
-                    disabled={loading || captchaLoading}
-                    className="w-full py-4 bg-orange-600 text-white font-black text-xs uppercase tracking-[0.4em] transition-all hover:bg-orange-500 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 shadow-[0_10px_20px_-10px_rgba(234,88,12,0.3)]"
+                    type="button"
+                    onClick={loadVisualCaptcha}
+                    disabled={captchaLoading}
+                    className="p-1 hover:bg-orange-600/10 rounded transition-colors group/refresh"
                   >
-                    {loading ? <Loader2 size={18} className="animate-spin" /> : <>Initialize Uplink <ChevronRight size={18} /></>}
+                    <RefreshCcw
+                      size={14}
+                      className={`text-slate-500 group-hover/refresh:text-orange-500 transition-all ${captchaLoading ? "animate-spin" : ""}`}
+                    />
                   </button>
-                </form>
-
-                <div className="pt-4 flex justify-between items-center border-t border-white/5">
-                   <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Existing Node?</p>
-                   <Link to="/auth/login" className="text-[9px] font-black text-orange-500 hover:text-white uppercase tracking-[0.2em] transition-all">
-                    Return to Login →
-                   </Link>
                 </div>
-              </motion.div>
-            ) : (
-              <SuccessState />
-            )}
-          </AnimatePresence>
+
+                <div className="flex gap-4 items-center">
+                  <div className="relative flex-1 h-14 bg-[#111] rounded-sm border border-white/10 flex items-center justify-center overflow-hidden">
+                    {captcha.image ? (
+                      <motion.img
+                        key={captcha.image}
+                        initial={{ opacity: 0, filter: "blur(10px)" }}
+                        animate={{ opacity: 1, filter: "blur(0px)" }}
+                        src={captcha.image}
+                        alt="captcha"
+                        className="h-full w-full object-contain filter contrast-150 brightness-110 mix-blend-lighten px-2"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 opacity-20">
+                        <Loader2
+                          size={16}
+                          className="animate-spin text-orange-600"
+                        />
+                        <span className="text-[8px] font-mono tracking-tighter uppercase">
+                          Decrypting
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Scanning Line Overlay */}
+                    <div className="absolute inset-0 pointer-events-none">
+                      <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.1)_50%)] bg-[size:100%_4px]" />
+                      <motion.div
+                        animate={{ y: [0, 56, 0] }}
+                        transition={{
+                          duration: 3,
+                          repeat: Infinity,
+                          ease: "linear",
+                        }}
+                        className="w-full h-[1px] bg-orange-500/40 shadow-[0_0_10px_orange]"
+                      />
+                    </div>
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="KEY"
+                    maxLength={6}
+                    className="w-24 h-14 bg-black border border-white/10 text-center font-mono text-lg font-black text-orange-500 focus:border-orange-500/50 outline-none transition-all placeholder:text-slate-800"
+                    value={form.captchaAnswer}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        captchaAnswer: e.target.value.toUpperCase(),
+                      })
+                    }
+                    required
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || captchaLoading}
+                className="w-full relative group overflow-hidden py-4 bg-white text-black font-black text-[10px] uppercase tracking-[0.4em] transition-all hover:bg-orange-600 hover:text-white disabled:opacity-50"
+              >
+                <div className="absolute inset-0 w-1/4 h-full bg-orange-600/10 -skew-x-[45deg] -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700" />
+                <span className="relative z-10 flex items-center justify-center gap-4">
+                  {loading ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <>
+                      Register_Uplink <ChevronRight size={16} />
+                    </>
+                  )}
+                </span>
+              </button>
+            </form>
+
+            <footer className="pt-8 border-t border-white/5 flex justify-between items-center">
+              <p className="text-[9px] text-slate-600 uppercase tracking-widest font-bold flex items-center gap-2">
+                <ShieldAlert size={12} /> Encrypted Session
+              </p>
+              <Link
+                to="/auth/login"
+                className="flex items-center gap-2 text-orange-500 hover:text-white transition-colors group"
+              >
+                <span className="text-[9px] font-black uppercase tracking-widest">
+                  Operator Login
+                </span>
+                <ChevronRight
+                  size={14}
+                  className="group-hover:translate-x-1 transition-transform"
+                />
+              </Link>
+            </footer>
+          </div>
         </div>
       </motion.div>
-
-      <style>{`
-        .custom-input {
-          width: 100%;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.08);
-          padding: 1rem 1rem 1rem 3rem;
-          font-size: 0.8rem;
-          color: white;
-          outline: none;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          border-radius: 4px;
-        }
-        .custom-input:focus {
-          background: rgba(255,255,255,0.06);
-          border-color: rgba(234, 88, 12, 0.5);
-          box-shadow: 0 0 20px -10px rgba(234, 88, 12, 0.3);
-        }
-      `}</style>
     </div>
   );
 };
 
-const InputBox = ({ label, icon: Icon, ...props }) => (
-  <div className="relative group">
-    <label className="absolute -top-2 left-3 bg-[#08090B] px-2 text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] group-focus-within:text-orange-500 z-20 transition-colors">
+/* --- TACTICAL COMPONENTS --- */
+
+const HUDStat = ({ label, value, highlight }) => (
+  <div className="space-y-1">
+    <p className="text-[8px] font-black text-slate-600 uppercase tracking-tighter">
       {label}
-    </label>
-    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-orange-500 transition-colors z-20">
-      <Icon size={16} />
-    </div>
-    <input 
-        {...props} 
-        onChange={(e) => props.onChange(e.target.value)}
-        className="custom-input font-bold tracking-wide" 
-    />
+    </p>
+    <p
+      className={`text-xs font-mono font-bold ${highlight ? "text-orange-500 animate-pulse" : "text-slate-300"}`}
+    >
+      {value}
+    </p>
   </div>
 );
 
-const TelemetryItem = ({ icon: Icon, label, value, color = "text-white" }) => (
-  <div className="flex items-center gap-3">
-    <Icon size={14} className="text-slate-600" />
-    <div className="flex flex-1 justify-between items-center text-[10px] font-bold uppercase tracking-widest border-b border-white/[0.03] pb-1">
-      <span className="text-slate-600">{label}</span>
-      <span className={color}>{value}</span>
+const CustomInput = ({ label, icon: Icon, ...props }) => (
+  <div className="space-y-2 group">
+    <div className="flex justify-between items-center px-1">
+      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] group-focus-within:text-orange-500 transition-colors">
+        {label}
+      </label>
+      <div className="h-[1px] w-8 bg-white/5 group-focus-within:bg-orange-600/40 transition-all" />
     </div>
-  </div>
-);
-
-const SuccessState = () => (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.9 }}
-    animate={{ opacity: 1, scale: 1 }}
-    className="flex flex-col items-center text-center space-y-6"
-  >
     <div className="relative">
-        <motion.div 
-            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.1, 0.3] }} 
-            transition={{ repeat: Infinity, duration: 2 }}
-            className="absolute inset-0 bg-emerald-500 rounded-full blur-2xl" 
-        />
-        <div className="relative p-8 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
-            <ShieldCheck size={54} className="text-emerald-500" />
-        </div>
+      {/* Visual Accent Line */}
+      <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-orange-600/20 group-focus-within:bg-orange-600 transition-colors" />
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-orange-600 transition-colors pointer-events-none">
+        <Icon size={18} />
+      </div>
+      <input
+        className="w-full bg-white/[0.03] border border-white/5 py-4 pl-12 pr-4 text-sm font-bold text-white placeholder:text-slate-800 outline-none group-focus-within:bg-white/[0.05] group-focus-within:border-white/10 transition-all rounded-xs"
+        {...props}
+        required
+      />
     </div>
-    <div className="space-y-2">
-      <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">Uplink_Established</h3>
-      <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-[0.3em]">Check relay email for OTP code</p>
-    </div>
-  </motion.div>
+  </div>
 );
 
 export default SignupPage;

@@ -15,7 +15,10 @@ const userSchema = new mongoose.Schema(
       index: true,
     },
     password: { type: String, required: true, select: false },
-    avatarUrl: { type: String, default: "https://api.dicebear.com/7.x/bottts-neutral/svg?seed=ANON" },
+    avatarUrl: {
+      type: String,
+      default: "https://api.dicebear.com/7.x/bottts-neutral/svg?seed=ANON",
+    },
     bio: { type: String, default: "Explorer of the vast cosmos." },
     address: { type: String, default: "Odisha, India" },
     role: { type: String, default: "Architect" },
@@ -63,10 +66,8 @@ const userSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
-
-userSchema.index({ username: 1 }, { unique: true });
 
 // --- Secure Password Hashing (REFINED) ---
 userSchema.pre("save", async function () {

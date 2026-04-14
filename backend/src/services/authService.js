@@ -540,6 +540,68 @@ export const authenticateUser = async ({
   return { status: 200, user };
 };
 
+export const requestLoginOtp = async ({ email }) => {
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!normalizedEmail) {
+    return {
+      status: 400,
+      body: { success: false, message: "Email is required." },
+    };
+  }
+
+  const user = await User.findOne({ email: normalizedEmail }).select("_id isVerified username email");
+
+  if (!user) {
+    return {
+      status: 404,
+      body: { success: false, message: "Account not found. Please register first." },
+    };
+  }
+
+  if (!user.isVerified) {
+    return {
+      status: 403,
+      body: { success: false, message: "Account not verified. Please complete registration." },
+    };
+  }
+
+  // Generate OTP and challenge token
+  const { otp, expiresAt } = await createAuthChallenge({
+    email: normalizedEmail,
+    userId: user._id,
+    purpose: "login_otp",
+    metadata: {},
+    ttlMs: SECURITY_OTP_TTL_MS,
+  });
+
+  // Send OTP via email
+  await sendEmail({
+    email: normalizedEmail,
+    otp,
+    subject: "Antariksh Security Protocol: Login OTP",
+  });
+
+  console.log(
+    JSON.stringify({
+      scope: "login_otp_requested",
+      email: normalizedEmail,
+      userId: user._id,
+      timestamp: new Date().toISOString(),
+    }),
+  );
+
+  return {
+    status: 200,
+    body: {
+      success: true,
+      message: "Verification OTP sent to your email.",
+      email: normalizedEmail,
+      expiresInSeconds: SECURITY_OTP_TTL_MS / 1000,
+    },
+  };
+};
+
 export const verifyLoginOtp = async ({
   email,
   otp,

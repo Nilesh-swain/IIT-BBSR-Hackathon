@@ -14,9 +14,16 @@ import {
 } from "lucide-react";
 
 const OtpVerification = (props) => {
+  const location = useLocation();
   const state = location.state || {};
   const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState(new Array(6).fill(""));
+  const [status, setStatus] = useState("idle");
+  const [message, setMessage] = useState("");
   const [timeLeft, setTimeLeft] = useState(600); // 10 minutes
+  const inputRefs = useRef([]);
+  const [sysTime, setSysTime] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const storedEmail = sessionStorage.getItem("pending_verification_email");
