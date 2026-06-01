@@ -24,6 +24,7 @@ const LoginPage = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [sysTime, setSysTime] = useState("");
   const [captcha, setCaptcha] = useState({ token: "", question: "" });
+  const [captchaLoading, setCaptchaLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,11 +38,15 @@ const LoginPage = () => {
   }, []);
 
   const loadCaptcha = async () => {
+    setCaptchaLoading(true);
     try {
       const response = await apiPost("/api/auth/captcha", { scope: "login" });
       setCaptcha(response.data);
     } catch (error) {
       console.error("Failed to load captcha:", error);
+      setErrorMessage("Failed to load security check. Please refresh the page.");
+    } finally {
+      setCaptchaLoading(false);
     }
   };
 
@@ -66,7 +71,6 @@ const LoginPage = () => {
     setStatus("AUTHORIZING");
 
     try {
-      // Direct verification against the database
       const response = await apiPost("/api/auth/login", {
         identifier: identifier.trim(),
         password,
@@ -76,13 +80,12 @@ const LoginPage = () => {
 
       setStatus("AUTHORIZED");
 
-      // Optional: Store token if not handled by your apiPost utility
-      // localStorage.setItem("token", response.token);
-
       setTimeout(() => navigate("/cosmos", { replace: true }), 800);
     } catch (error) {
       setStatus("FAILED");
       setErrorMessage(error.message || "Access Denied: Invalid Credentials.");
+      // Reload captcha on failed attempt
+      loadCaptcha();
       setTimeout(() => setStatus("STANDBY"), 3000);
     }
   };
@@ -204,7 +207,7 @@ const LoginPage = () => {
 
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                    Security Check: {captcha.question}
+                    Security Check: {captchaLoading ? "Loading..." : captcha.question}
                   </label>
                   <input
                     type="text"
@@ -212,7 +215,7 @@ const LoginPage = () => {
                     className="auth-input"
                     value={captchaAnswer}
                     onChange={(e) => setCaptchaAnswer(e.target.value)}
-                    disabled={status === "AUTHORIZING"}
+                    disabled={status === "AUTHORIZING" || captchaLoading}
                     required
                   />
                 </div>
@@ -220,7 +223,13 @@ const LoginPage = () => {
 
               <button
                 type="submit"
-                disabled={status === "AUTHORIZING" || !identifier || !password || !captchaAnswer}
+                disabled={
+                  status === "AUTHORIZING" ||
+                  !identifier.trim() ||
+                  !password ||
+                  !captchaAnswer.trim() ||
+                  captchaLoading
+                }
                 className="w-full py-4 bg-white text-black font-black text-[10px] uppercase tracking-[0.3em] transition-all hover:bg-orange-600 hover:text-white flex items-center justify-center gap-4 disabled:opacity-50"
               >
                 {status === "AUTHORIZING" ? (

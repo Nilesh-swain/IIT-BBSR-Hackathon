@@ -63,7 +63,11 @@ const createCaptchaPayload = (scope) => {
   };
 };
 
-const verifyCaptchaChallenge = async ({ scope, captchaToken, captchaAnswer }) => {
+const verifyCaptchaChallenge = async ({
+  scope,
+  captchaToken,
+  captchaAnswer,
+}) => {
   const normalizedToken = String(captchaToken || "").trim();
   const normalizedAnswer = normalizeCaptchaAnswer(captchaAnswer);
 
@@ -85,7 +89,10 @@ const verifyCaptchaChallenge = async ({ scope, captchaToken, captchaAnswer }) =>
     return {
       valid: false,
       status: 400,
-      body: { success: false, message: "Captcha expired. Please refresh and try again." },
+      body: {
+        success: false,
+        message: "Captcha expired. Please refresh and try again.",
+      },
     };
   }
 
@@ -237,14 +244,20 @@ export const createRegistrationOtp = async ({
   if (!normalizedUsername || !normalizedEmail || !password) {
     return {
       status: 400,
-      body: { success: false, message: "Username, email, and password are required." },
+      body: {
+        success: false,
+        message: "Username, email, and password are required.",
+      },
     };
   }
 
   if (password.length < 6) {
     return {
       status: 400,
-      body: { success: false, message: "Password must be at least 6 characters long." },
+      body: {
+        success: false,
+        message: "Password must be at least 6 characters long.",
+      },
     };
   }
 
@@ -262,14 +275,21 @@ export const createRegistrationOtp = async ({
   }
 
   const [existingEmailUser, existingUsernameUser] = await Promise.all([
-    User.findOne({ email: normalizedEmail }).select("_id isVerified username email"),
-    User.findOne({ username: normalizedUsername }).select("_id isVerified username email"),
+    User.findOne({ email: normalizedEmail }).select(
+      "_id isVerified username email",
+    ),
+    User.findOne({ username: normalizedUsername }).select(
+      "_id isVerified username email",
+    ),
   ]);
 
   if (existingEmailUser?.isVerified) {
     return {
       status: 409,
-      body: { success: false, message: "Identity already registered. Please login." },
+      body: {
+        success: false,
+        message: "Identity already registered. Please login.",
+      },
     };
   }
 
@@ -354,7 +374,7 @@ export const createRegistrationOtp = async ({
       expiresInSeconds: REGISTRATION_OTP_TTL_MS / 1000,
     },
   };
-}
+};
 
 export const verifyRegistrationOtp = async ({ email, otp }) => {
   const normalizedEmail = normalizeEmail(email);
@@ -376,13 +396,15 @@ export const verifyRegistrationOtp = async ({ email, otp }) => {
   const user =
     (pendingVerification.userId
       ? await User.findById(pendingVerification.userId)
-      : await User.findOne({ email: normalizedEmail })) ||
-    null;
+      : await User.findOne({ email: normalizedEmail })) || null;
 
   if (!user) {
     return {
       status: 404,
-      body: { success: false, message: "Pending account not found. Please register again." },
+      body: {
+        success: false,
+        message: "Pending account not found. Please register again.",
+      },
     };
   }
 
@@ -418,19 +440,27 @@ export const resendRegistrationOtp = async ({ email }) => {
   if (existingUser?.isVerified) {
     return {
       status: 400,
-      body: { success: false, message: "Identity already verified. Please login." },
+      body: {
+        success: false,
+        message: "Identity already verified. Please login.",
+      },
     };
   }
 
   if (!pendingVerification) {
     return {
       status: 404,
-      body: { success: false, message: "No pending verification found for this email." },
+      body: {
+        success: false,
+        message: "No pending verification found for this email.",
+      },
     };
   }
 
   pendingVerification.otp = generateOtp();
-  pendingVerification.expiresAt = new Date(Date.now() + REGISTRATION_OTP_TTL_MS);
+  pendingVerification.expiresAt = new Date(
+    Date.now() + REGISTRATION_OTP_TTL_MS,
+  );
   await pendingVerification.save();
 
   await sendEmail({
@@ -454,18 +484,16 @@ export const resendRegistrationOtp = async ({ email }) => {
 };
 
 export const authenticateUser = async ({
-  email,
+  identifier,
   password,
   captchaToken,
   captchaAnswer,
   trustedDeviceToken,
 }) => {
-  const normalizedEmail = normalizeEmail(email);
-
-  if (!normalizedEmail || !password) {
+  if (!identifier || !password) {
     return {
       status: 400,
-      body: { success: false, message: "Email and password are required." },
+      body: { success: false, message: "Identifier and password are required." },
     };
   }
 
@@ -482,7 +510,11 @@ export const authenticateUser = async ({
     };
   }
 
-  const user = await User.findOne({ email: normalizedEmail }).select(
+  // Check if identifier is email or username
+  const isEmail = identifier.includes("@");
+  const query = isEmail ? { email: normalizeEmail(identifier) } : { username: normalizeUsername(identifier) };
+
+  const user = await User.findOne(query).select(
     `${AUTH_SESSION_FIELDS} +password`,
   );
 
@@ -511,7 +543,9 @@ export const authenticateUser = async ({
       {
         $set: {
           "security.trustedDevices.$.lastUsedAt": new Date(),
-          "security.trustedDevices.$.expiresAt": new Date(Date.now() + TRUSTED_DEVICE_TTL_MS),
+          "security.trustedDevices.$.expiresAt": new Date(
+            Date.now() + TRUSTED_DEVICE_TTL_MS,
+          ),
         },
       },
     );
@@ -550,19 +584,27 @@ export const requestLoginOtp = async ({ email }) => {
     };
   }
 
-  const user = await User.findOne({ email: normalizedEmail }).select("_id isVerified username email");
+  const user = await User.findOne({ email: normalizedEmail }).select(
+    "_id isVerified username email",
+  );
 
   if (!user) {
     return {
       status: 404,
-      body: { success: false, message: "Account not found. Please register first." },
+      body: {
+        success: false,
+        message: "Account not found. Please register first.",
+      },
     };
   }
 
   if (!user.isVerified) {
     return {
       status: 403,
-      body: { success: false, message: "Account not verified. Please complete registration." },
+      body: {
+        success: false,
+        message: "Account not verified. Please complete registration.",
+      },
     };
   }
 
@@ -616,7 +658,10 @@ export const verifyLoginOtp = async ({
   if (!normalizedEmail || !normalizedOtp || !normalizedChallengeToken) {
     return {
       status: 400,
-      body: { success: false, message: "Email, OTP, and challenge token are required." },
+      body: {
+        success: false,
+        message: "Email, OTP, and challenge token are required.",
+      },
     };
   }
 
@@ -630,18 +675,29 @@ export const verifyLoginOtp = async ({
   if (!challenge) {
     return {
       status: 400,
-      body: { success: false, message: "Invalid or expired login verification code." },
+      body: {
+        success: false,
+        message: "Invalid or expired login verification code.",
+      },
     };
   }
 
-  if (challenge.metadata?.challengeTokenHash !== hashToken(normalizedChallengeToken)) {
+  if (
+    challenge.metadata?.challengeTokenHash !==
+    hashToken(normalizedChallengeToken)
+  ) {
     return {
       status: 400,
-      body: { success: false, message: "Login verification session is invalid." },
+      body: {
+        success: false,
+        message: "Login verification session is invalid.",
+      },
     };
   }
 
-  const user = await User.findById(challenge.userId).select(`${AUTH_SESSION_FIELDS} +password`);
+  const user = await User.findById(challenge.userId).select(
+    `${AUTH_SESSION_FIELDS} +password`,
+  );
 
   if (!user || !user.isVerified) {
     return {
@@ -682,14 +738,23 @@ export const resendLoginOtp = async ({ email, challengeToken }) => {
   if (!challenge) {
     return {
       status: 404,
-      body: { success: false, message: "Login verification session not found." },
+      body: {
+        success: false,
+        message: "Login verification session not found.",
+      },
     };
   }
 
-  if (challenge.metadata?.challengeTokenHash !== hashToken(normalizedChallengeToken)) {
+  if (
+    challenge.metadata?.challengeTokenHash !==
+    hashToken(normalizedChallengeToken)
+  ) {
     return {
       status: 400,
-      body: { success: false, message: "Login verification session is invalid." },
+      body: {
+        success: false,
+        message: "Login verification session is invalid.",
+      },
     };
   }
 
@@ -730,14 +795,17 @@ export const requestPasswordReset = async ({ email }) => {
     };
   }
 
-  const user = await User.findOne({ email: normalizedEmail }).select("_id email isVerified");
+  const user = await User.findOne({ email: normalizedEmail }).select(
+    "_id email isVerified",
+  );
 
   if (!user || !user.isVerified) {
     return {
       status: 200,
       body: {
         success: true,
-        message: "If this account exists, password reset instructions were sent.",
+        message:
+          "If this account exists, password reset instructions were sent.",
       },
     };
   }
@@ -782,7 +850,10 @@ export const verifyPasswordResetOtp = async ({ email, otp, resetToken }) => {
   if (!normalizedEmail || !normalizedOtp || !normalizedResetToken) {
     return {
       status: 400,
-      body: { success: false, message: "Email, OTP, and reset token are required." },
+      body: {
+        success: false,
+        message: "Email, OTP, and reset token are required.",
+      },
     };
   }
 
@@ -796,7 +867,10 @@ export const verifyPasswordResetOtp = async ({ email, otp, resetToken }) => {
   if (!challenge) {
     return {
       status: 400,
-      body: { success: false, message: "Invalid or expired password reset code." },
+      body: {
+        success: false,
+        message: "Invalid or expired password reset code.",
+      },
     };
   }
 
@@ -840,17 +914,28 @@ export const completePasswordReset = async ({
   const normalizedResetToken = String(resetToken || "").trim();
   const normalizedGrant = String(passwordResetGrant || "").trim();
 
-  if (!normalizedEmail || !normalizedResetToken || !normalizedGrant || !newPassword) {
+  if (
+    !normalizedEmail ||
+    !normalizedResetToken ||
+    !normalizedGrant ||
+    !newPassword
+  ) {
     return {
       status: 400,
-      body: { success: false, message: "All password reset fields are required." },
+      body: {
+        success: false,
+        message: "All password reset fields are required.",
+      },
     };
   }
 
   if (newPassword.length < 6) {
     return {
       status: 400,
-      body: { success: false, message: "Password must be at least 6 characters long." },
+      body: {
+        success: false,
+        message: "Password must be at least 6 characters long.",
+      },
     };
   }
 
@@ -873,7 +958,10 @@ export const completePasswordReset = async ({
   ) {
     return {
       status: 400,
-      body: { success: false, message: "Password reset authorization is invalid." },
+      body: {
+        success: false,
+        message: "Password reset authorization is invalid.",
+      },
     };
   }
 
@@ -930,17 +1018,25 @@ export const updateUserSettings = async (userId, payload = {}) => {
   if (payload.notificationPreferences) {
     update.notificationPreferences = {
       emailUpdates: Boolean(payload.notificationPreferences.emailUpdates),
-      webNotifications: Boolean(payload.notificationPreferences.webNotifications),
-      desktopNotifications: Boolean(payload.notificationPreferences.desktopNotifications),
+      webNotifications: Boolean(
+        payload.notificationPreferences.webNotifications,
+      ),
+      desktopNotifications: Boolean(
+        payload.notificationPreferences.desktopNotifications,
+      ),
       smsUpdates: Boolean(payload.notificationPreferences.smsUpdates),
       soundEffects: Boolean(payload.notificationPreferences.soundEffects),
     };
   }
 
   if (payload.security?.twoFactor) {
-    update["security.twoFactor.enabled"] = Boolean(payload.security.twoFactor.enabled);
+    update["security.twoFactor.enabled"] = Boolean(
+      payload.security.twoFactor.enabled,
+    );
     update["security.twoFactor.method"] =
-      payload.security.twoFactor.method === "trusted_device" ? "trusted_device" : "otp";
+      payload.security.twoFactor.method === "trusted_device"
+        ? "trusted_device"
+        : "otp";
   }
 
   const user = await User.findByIdAndUpdate(

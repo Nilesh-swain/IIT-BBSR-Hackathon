@@ -205,7 +205,8 @@ export const verifyLoginOtpController = async (req, res, next) => {
   try {
     const result = await verifyLoginOtp({
       ...req.body,
-      trustDevice: req.body?.trustDevice === true || req.body?.trustDevice === "true",
+      trustDevice:
+        req.body?.trustDevice === true || req.body?.trustDevice === "true",
       deviceLabel: req.body?.deviceLabel || "Trusted device",
     });
     if (!result.user) {
@@ -214,11 +215,15 @@ export const verifyLoginOtpController = async (req, res, next) => {
 
     if (result.trustedDeviceCookie) {
       const isProd = process.env.NODE_ENV === "production";
-      res.cookie(result.trustedDeviceCookie.name, result.trustedDeviceCookie.value, {
-        ...result.trustedDeviceCookie.options,
-        secure: isProd,
-        sameSite: isProd ? "None" : "Lax",
-      });
+      res.cookie(
+        result.trustedDeviceCookie.name,
+        result.trustedDeviceCookie.value,
+        {
+          ...result.trustedDeviceCookie.options,
+          secure: isProd,
+          sameSite: isProd ? "None" : "Lax",
+        },
+      );
     }
 
     return sendToken(result.user, 200, res);
@@ -292,7 +297,11 @@ export const updateSettings = async (req, res, next) => {
       result.body?.data?.security?.twoFactor?.enabled === false
     ) {
       const trustedCookie = clearTrustedDeviceCookie();
-      res.cookie(trustedCookie.name, trustedCookie.value, trustedCookie.options);
+      res.cookie(
+        trustedCookie.name,
+        trustedCookie.value,
+        trustedCookie.options,
+      );
     }
 
     return res.status(result.status).json(result.body);

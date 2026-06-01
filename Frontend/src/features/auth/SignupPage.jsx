@@ -25,7 +25,7 @@ const SignupPage = () => {
   const [loading, setLoading] = useState(false);
   const [captchaLoading, setCaptchaLoading] = useState(false);
   const [sysTime, setSysTime] = useState("");
-  const [captcha, setCaptcha] = useState({ token: "", image: "" });
+  const [captcha, setCaptcha] = useState({ token: "", question: "" });
   const [form, setForm] = useState({
     username: "",
     email: "",
@@ -48,14 +48,26 @@ const SignupPage = () => {
 
   const loadVisualCaptcha = async () => {
     setCaptchaLoading(true);
+    setError("");
+
     try {
-      const { data } = await apiPost("/api/auth/captcha/visual", {
+      const response = await apiPost("/api/auth/captcha", {
         scope: "signup",
       });
-      setCaptcha(data);
+
+      if (!response?.data) {
+        throw new Error("Invalid captcha response received.");
+      }
+
+      setCaptcha(response.data);
       setForm((prev) => ({ ...prev, captchaAnswer: "" }));
     } catch (err) {
-      console.error("SEC_LINK_ERROR: CAPTCHA_FAILURE");
+      console.error("SEC_LINK_ERROR: CAPTCHA_FAILURE", err);
+      setError(
+        err?.message ||
+          "Unable to load the security check. Please refresh the page and try again.",
+      );
+      setCaptcha({ token: "", question: "" });
     } finally {
       setCaptchaLoading(false);
     }
@@ -97,8 +109,17 @@ const SignupPage = () => {
 
       setStatus("SUCCESS");
       // Store email for OTP verification
-      sessionStorage.setItem("pending_verification_email", form.email.trim().toLowerCase());
-      setTimeout(() => navigate("/auth/verify-otp", { state: { email: form.email.trim().toLowerCase() } }), 1500);
+      sessionStorage.setItem(
+        "pending_verification_email",
+        form.email.trim().toLowerCase(),
+      );
+      setTimeout(
+        () =>
+          navigate("/auth/verify-otp", {
+            state: { email: form.email.trim().toLowerCase() },
+          }),
+        1500,
+      );
     } catch (error) {
       setStatus("FAILED");
       setError(error.message || "Registration failed. Please try again.");
@@ -228,7 +249,7 @@ const SignupPage = () => {
               )}
               <div className="space-y-5">
                 <CustomInput
-                  label="Operator Alias"
+                  label="Username"
                   icon={Fingerprint}
                   placeholder="X-OPERATOR"
                   value={form.username}
@@ -237,14 +258,14 @@ const SignupPage = () => {
                   }
                 />
                 <CustomInput
-                  label="Relay Email"
+                  label="Email id"
                   icon={Mail}
                   placeholder="void@antariksh.io"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />
                 <CustomInput
-                  label="Security Cipher"
+                  label="Passward"
                   icon={Lock}
                   placeholder="••••••••"
                   type="password"
@@ -281,15 +302,15 @@ const SignupPage = () => {
 
                 <div className="flex gap-4 items-center">
                   <div className="relative flex-1 h-14 bg-[#111] rounded-sm border border-white/10 flex items-center justify-center overflow-hidden">
-                    {captcha.image ? (
-                      <motion.img
-                        key={captcha.image}
-                        initial={{ opacity: 0, filter: "blur(10px)" }}
-                        animate={{ opacity: 1, filter: "blur(0px)" }}
-                        src={captcha.image}
-                        alt="captcha"
-                        className="h-full w-full object-contain filter contrast-150 brightness-110 mix-blend-lighten px-2"
-                      />
+                    {captcha.question ? (
+                      <motion.div
+                        key={captcha.question}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-center text-orange-500 font-mono text-lg font-bold px-2"
+                      >
+                        {captcha.question}
+                      </motion.div>
                     ) : (
                       <div className="flex flex-col items-center gap-1 opacity-20">
                         <Loader2

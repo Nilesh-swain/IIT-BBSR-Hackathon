@@ -32,11 +32,15 @@ const otpByEmailLimiter = createRateLimit({
   windowMs: 10 * 60 * 1000,
   max: 5,
   keyGenerator: (req) =>
-    `${req.ip}:${String(req.body?.email || "").trim().toLowerCase() || "unknown"}`,
+    `${req.ip}:${
+      String(req.body?.email || "")
+        .trim()
+        .toLowerCase() || "unknown"
+    }`,
   message: "Too many OTP requests. Please wait before requesting another code.",
 });
 
-/** * --- PUBLIC AUTH PROTOCOLS --- 
+/** * --- PUBLIC AUTH PROTOCOLS ---
  * These endpoints handle identity creation and session initiation.
  */
 
@@ -65,7 +69,11 @@ router.post("/resend-otp", otpByEmailLimiter, resendOTP);
 router.post("/forgot-password", otpByEmailLimiter, forgotPassword);
 
 // @route   POST /api/auth/forgot-password/verify-otp
-router.post("/forgot-password/verify-otp", authByIpLimiter, verifyForgotPasswordOtp);
+router.post(
+  "/forgot-password/verify-otp",
+  authByIpLimiter,
+  verifyForgotPasswordOtp,
+);
 
 // @route   POST /api/auth/reset-password
 router.post("/reset-password", authByIpLimiter, resetPassword);
@@ -73,7 +81,7 @@ router.post("/reset-password", authByIpLimiter, resetPassword);
 // @route   GET /api/auth/logout
 router.get("/logout", logout);
 
-/** * --- PROTECTED SYSTEM NODES --- 
+/** * --- PROTECTED SYSTEM NODES ---
  * These require a valid JWT via the 'isAuthenticated' middleware.
  */
 
@@ -100,7 +108,7 @@ router.post(
   "/upload-avatar",
   isAuthenticated,
   upload.single("avatar"),
-  uploadAvatar
+  uploadAvatar,
 );
 
 /**
@@ -112,10 +120,10 @@ router.post(
   "/upload-paper",
   isAuthenticated,
   upload.single("paper"),
-  uploadPaper
+  uploadPaper,
 );
 
-/** * --- SYSTEM ALIASES --- 
+/** * --- SYSTEM ALIASES ---
  * Redundant nodes for internal compatibility and health checks.
  */
 router.get("/me", isAuthenticated, getMyProfile);

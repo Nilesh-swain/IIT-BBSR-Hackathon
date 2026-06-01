@@ -232,7 +232,7 @@ app.use("/api/watchlist", watchlistRoutes);
 app.use("/api/community", communityRoutes);
 app.use("/api/research", researchRoutes);
 
-app.use("/{*any}", (req, res) => {
+app.use("*", (req, res) => {
   res.status(404).json({
     success: false,
     message: `Route not found: ${req.originalUrl}`,

@@ -26,7 +26,7 @@ const OtpVerification = (props) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedEmail = sessionStorage.getItem("pending_verification_email");
+    const storedEmail = sessionStorage.getItem("pending_verification_email") || sessionStorage.getItem("pending_login_email");
     const currentEmail = props.email || state.email || storedEmail;
 
     if (currentEmail && currentEmail !== "operator@example.com") {
@@ -35,7 +35,7 @@ const OtpVerification = (props) => {
     } else if (!currentEmail) {
       navigate("/auth/signup", { replace: true });
     } else {
-        setEmail(currentEmail);
+      setEmail(currentEmail);
     }
   }, [props.email, state.email, navigate]);
 
@@ -86,10 +86,28 @@ const OtpVerification = (props) => {
     setMessage("");
 
     try {
-      await apiPost("/api/auth/verify-otp", { email, otp: entry });
+      // Determine if this is login or registration verification
+      const isLoginContext = state.context === "login" || sessionStorage.getItem("pending_login_email");
+
+      const endpoint = isLoginContext ? "/api/auth/login/verify-otp" : "/api/auth/verify-otp";
+      const payload = isLoginContext
+        ? { email, otp: entry, trustDevice: false }
+        : { email, otp: entry };
+
+      await apiPost(endpoint, payload);
+
       setStatus("success");
+
+      // Clean up session storage
       sessionStorage.removeItem("pending_verification_email");
-      setTimeout(() => navigate("/cosmos", { replace: true }), 1000);
+      sessionStorage.removeItem("pending_login_email");
+
+      const successMessage = isLoginContext
+        ? "Access granted! Welcome back to Antariksh."
+        : "Account verified successfully! Welcome to Antariksh.";
+
+      setMessage(successMessage);
+      setTimeout(() => navigate("/cosmos", { replace: true }), 2000);
     } catch (error) {
       setMessage(error.message || "Verification failed.");
       setStatus("error");
@@ -146,17 +164,24 @@ const OtpVerification = (props) => {
                 <span className="text-orange-600">Verification.</span>
               </h3>
               <p className="text-sm text-slate-500 leading-relaxed max-w-[280px]">
-                Final signup step. Enter the 6-digit OTP sent to your registered email.
+                Final signup step. Enter the 6-digit OTP sent to your registered
+                email.
               </p>
             </div>
 
             <div className="space-y-3 pt-6 border-t border-white/5">
               <TelemetryItem label="Channel" value={email} />
-              <TelemetryItem label="Mode" value="REGISTRATION OTP" color="text-emerald-500" />
-              <TelemetryItem 
-                label="Expires" 
-                value={formatTime(timeLeft)} 
-                color={timeLeft < 60 ? "text-rose-500 animate-pulse" : "text-white"} 
+              <TelemetryItem
+                label="Mode"
+                value="REGISTRATION OTP"
+                color="text-emerald-500"
+              />
+              <TelemetryItem
+                label="Expires"
+                value={formatTime(timeLeft)}
+                color={
+                  timeLeft < 60 ? "text-rose-500 animate-pulse" : "text-white"
+                }
               />
               <TelemetryItem
                 label="Uplink"
